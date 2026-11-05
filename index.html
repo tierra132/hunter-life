@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>野生動物ハンティングライフ</title>
+<link rel="stylesheet" href="style.css"></head><body>
+<canvas id="gl"></canvas>
+<div id="ui">
+ <div class="hud" id="info"></div><div class="hud" id="mis"></div>
+ <div class="hud" id="mini"><canvas id="mc" width="96" height="96"></canvas></div>
+ <button id="menuBtn">メニュー</button>
+ <button id="sneak">通常移動</button>
+ <button id="aim">構える</button><button id="trapB">罠</button><button id="gun"></button><button id="fire" class="pri">射撃</button><div id="ret"></div><div id="res"></div>
+ <button id="act" class="pri"></button>
+ <div id="stick"><div id="knob"></div></div>
+ <div id="hint">左：移動　右ドラッグ：視点</div>
+ <div id="toast"></div>
+ <div class="panel" id="panel"></div>
+</div>
+<div id="rot">📱 スマートフォンを横向きにしてください</div>
+<div id="boot"><div style="font-size:22px;font-weight:700">野生動物ハンティングライフ</div><div style="opacity:.7;font-size:13px">開発版（Phase 7）</div><button class="pri" id="start">はじめる</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>if(typeof THREE==='undefined'){document.getElementById('boot').innerHTML='<div style="padding:24px;line-height:1.7">3Dライブラリを読み込めませんでした。<br>通信状態を確認して、ページを再読み込みしてください。<br>（セーブデータは消えません）</div>'}</script>
+
+<script src="data.js"></script>
+<script src="game.js"></script>
+</body></html>
