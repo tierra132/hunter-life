@@ -3,8 +3,7 @@
 /* ===== ログ・通知 ===== */
 const LOG=[];function log(...a){LOG.push([Date.now(),...a].join(' '));if(LOG.length>200)LOG.shift();console.warn(...a)}
 const $=id=>document.getElementById(id);
-let tt;function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',2600)}
-/* ===== セーブ（一時書込→検証→本体、旧世代をバックアップ、版数管理） ===== */
+let tt;/* ===== セーブ（一時書込→検証→本体、旧世代をバックアップ、版数管理） ===== */
 const KEY='hlg_save';
 const defSave=()=>({v:DATA.saveVersion,rank:1,exp:0,money:500,unlocked:['satoyama'],inv:{},missions:{active:[],done:{}},dex:{},records:[],dogs:[mkDog('dog1','ハナ',{find:.5,track:.3,coop:.25})],party:['dog1'],traps:[],trapInv:{box:0,snare:1},gen:{},pop:{},settings:{},own:['airgun'],gun:'airgun',ammo:{airgun:30},bag:[],res:{meat:0,hide:0},gearOwn:[],gearOn:[],savedAt:0});
 const MIGRATE={/* 例: 1:o=>{...;o.v=2;return o} */};
@@ -59,39 +58,28 @@ function build(id){
  scene.add(player);area=A;aid=id}
 function go(id){paused=false;closePanel();build(id);const A=DATA.areas[id];
  player.position.set(0,0,id==='base'?10:0);yaw=id==='base'?Math.PI:0;pitch=.35;faceY=yaw;
- $('sneak').style.display=id==='base'?'none':'block';sneak=false;$('sneak').textContent='通常移動';for(const b of['aim','gun','trapB'])$(b).style.display=id==='base'?'none':'block';setAim(false);
+ $('sneak').style.display=id==='base'?'none':'block';setSneak(false);for(const b of['aim','trapB'])$(b).style.display=id==='base'?'none':'flex';setAim(false);
  if(id==='base'&&S.own.includes('airgun')&&(S.ammo.airgun||0)<5&&S.money<DATA.ammoPack.airgun.price){S.ammo.airgun=10;toast('見習い支給：空気銃の弾10発')}
  initField();checkUnlock();procTraps();updInfo();save();if(id==='base'&&S.bag.length)storagePanel()}
 /* ===== 操作 ===== */
 let yaw=0,pitch=.35,faceY=0,sneak=false;const st={id:null,ox:0,oy:0,x:0,y:0},lk={id:null,x:0,y:0},keys={};
 const ui=$('ui');
-ui.addEventListener('pointerdown',e=>{if(paused||e.target.closest('button,.panel'))return;
- if(e.clientX<innerWidth*.45){if(st.id===null){st.id=e.pointerId;st.ox=e.clientX;st.oy=e.clientY;st.x=st.y=0;const s=$('stick');s.style.display='block';s.style.left=(e.clientX-ui.getBoundingClientRect().left)+'px';s.style.top=(e.clientY-ui.getBoundingClientRect().top)+'px'}}
- else if(lk.id===null){lk.id=e.pointerId;lk.x=e.clientX;lk.y=e.clientY}ui.setPointerCapture(e.pointerId)});
-ui.addEventListener('pointermove',e=>{if(e.pointerId===st.id){let dx=e.clientX-st.ox,dy=e.clientY-st.oy;const d=Math.hypot(dx,dy),M=50;if(d>M){dx*=M/d;dy*=M/d}st.x=dx/M;st.y=dy/M;$('knob').style.transform=`translate(${dx*.8}px,${dy*.8}px)`}
- else if(e.pointerId===lk.id){const sn=(aiming?.4:1)*(S.settings.sens||1);yaw-=(e.clientX-lk.x)*.006*sn;pitch=Math.max(.05,Math.min(1.2,pitch+(e.clientY-lk.y)*.005*sn));lk.x=e.clientX;lk.y=e.clientY}});
+ui.addEventListener('pointerdown',e=>{if(paused||e.target.closest('button,.panel'))return;const g=gp(e);
+ if(g.x<GW*.45){if(st.id===null){st.id=e.pointerId;st.ox=g.x;st.oy=g.y;st.x=st.y=0;const o=$('stick');o.style.display='block';o.style.left=(g.x-ui.offsetLeft)+'px';o.style.top=(g.y-ui.offsetTop)+'px'}}
+ else if(lk.id===null){lk.id=e.pointerId;lk.x=g.x;lk.y=g.y}ui.setPointerCapture(e.pointerId)});
+ui.addEventListener('pointermove',e=>{const g=gp(e);if(e.pointerId===st.id){let dx=g.x-st.ox,dy=g.y-st.oy;const d=Math.hypot(dx,dy),M=50;if(d>M){dx*=M/d;dy*=M/d}st.x=dx/M;st.y=dy/M;$('knob').style.transform=`translate(${dx*.8}px,${dy*.8}px)`}
+ else if(e.pointerId===lk.id){const sn=(aiming?.4:1)*(S.settings.sens||1);yaw-=(g.x-lk.x)*.006*sn;pitch=Math.max(.05,Math.min(1.2,pitch+(g.y-lk.y)*.005*sn));lk.x=g.x;lk.y=g.y}});
 const up=e=>{if(e.pointerId===st.id){st.id=null;st.x=st.y=0;$('stick').style.display='none';$('knob').style.transform=''}if(e.pointerId===lk.id)lk.id=null};
 ui.addEventListener('pointerup',up);ui.addEventListener('pointercancel',up);
 addEventListener('keydown',e=>keys[e.code]=1);addEventListener('keyup',e=>keys[e.code]=0);
-$('sneak').onclick=()=>{sneak=!sneak;$('sneak').textContent=sneak?'慎重移動':'通常移動'};
+tap($('sneak'),()=>setSneak(!sneak));
 /* ===== パネル ===== */
-function openPanel(t,h){paused=true;st.id=lk.id=null;st.x=st.y=0;$('stick').style.display='none';const p=$('panel');p.innerHTML=`<h2>${t}</h2>${h}<div class="row"><button data-a="close">閉じる</button></div>`;p.style.display='block'}
-function closePanel(){$('panel').style.display='none';paused=false}
-function pending(f){const P={mission:boardPanel,shop:shopPanel,storage:storagePanel,kennel:kennelPanel,dex:dexPanel}[f.id];if(P)return P();openPanel(f.name,`<div class="card dim">この施設の機能は Phase ${f.phase} で実装予定です（現在は未実装）。</div>`)}
-function gatePanel(){cur=gatePanel;let h=prepHtml()+evHtml();for(const[id,A]of Object.entries(DATA.areas)){if(id==='base')continue;const ok=S.unlocked.includes(id)&&A.ready;
- h+=`<div class="card ${ok?'':'dim'}"><b>${A.name}</b>　${A.desc}${A.feat?'<br>特徴：'+A.feat:''}${A.spawn?'<br>獣の気配：'+abund(id):''}<br>${ok?`<button class="pri" data-a="go" data-id="${id}">出発</button>`:('未解放（Rank '+A.unlockRank+(A.needMission?'・「'+DATA.missions[A.needMission].title+'」達成':'')+'）')}</div>`}
- openPanel('出発準備',h+'<div class="card dim">罠の持ち込みは Phase 6、同行犬の選択は Phase 5 で追加されます。</div>')}
-function menuPanel(){let h='<div class="row">';
- if(aid==='base'){for(const f of DATA.facilities)h+=`<button data-a="fac" data-id="${f.id}">${f.name}</button>`}
- else h+='<button class="pri" data-a="go" data-id="base">拠点へ戻る</button>';
- h+='<button data-a="help">操作説明</button><button data-a="settings">設定</button><button data-a="traps">罠の状況</button><button data-a="save">セーブ</button><button data-a="reset">データ初期化</button></div>';openPanel('メニュー',h)}
-$('panel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a,id=b.dataset.id;if(act2(a,b.dataset))return;
+$('panel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a,id=b.dataset.id;if(uiAct(a,b.dataset))return;if(act2(a,b.dataset))return;
  if(a==='close')closePanel();else if(a==='go')go(id);else if(a==='save')toast(save()?'セーブしました':'セーブ失敗');
  else if(a==='fac'){const f=DATA.facilities.find(x=>x.id===id);f.id==='gate'?gatePanel():pending(f)}
  else if(a==='reset'){if(b.dataset.c){S=defSave();save();go('base');toast('初期化しました')}else{b.dataset.c=1;b.textContent='本当に消去する？もう一度押す'}}});
-$('menuBtn').onclick=()=>paused?closePanel():menuPanel();
-$('act').onclick=()=>{if(!near||paused)return;if(near.sign)return inspect(near.sign);if(near.trapId)return trapAct(near.trapId);near.id==='gate'?gatePanel():pending(near)};
-function updInfo(){const g=aid!=='base'&&DATA.guns[S.gun];if(g)$('gun').textContent=g.name;$('info').innerHTML=`<b>${area.name}</b>　Rank ${S.rank}　💰${S.money}`+(g?`<br>${g.name}　弾 ${S.ammo[S.gun]||0}${env?'　'+envText():''}<br>🐕 `+party().map(d=>`${d.name} Lv${d.lv}(${Math.round(d.fatigue)}%)`).join(' '):'');updMis()}
+tap($('menuBtn'),()=>paused?closePanel():menuPanel());tap($('misBtn'),toggleMis);tap($('rotBtn'),flipRot);
+tap($('act'),()=>{if(!near||paused)return;if(near.sign)return inspect(near.sign);if(near.trapId)return trapAct(near.trapId);near.id==='gate'?gatePanel():pending(near)});
 /* ===== 動物・痕跡・発見（Phase 2） ===== */
 const AN=[],SG=[],pulses=[];let signT=0,moving=false,dog=null;
 const cl=v=>Math.max(-(area.half-1),Math.min(area.half-1,v));
@@ -148,15 +136,13 @@ function drawMini(p){const c=Math.cos(yaw),s=Math.sin(yaw);mc.setTransform(1,0,0
  mc.setTransform(1,0,0,1,48,48);mc.rotate(yaw-player.rotation.y);mc.fillStyle='#e0a43a';mc.beginPath();mc.moveTo(0,-5);mc.lineTo(4,4);mc.lineTo(-4,4);mc.fill();mc.setTransform(1,0,0,1,0,0)}
 /* ===== 狩猟：構え・照準・射撃・捕獲（Phase 3） ===== */
 let aiming=false,aimT=0,cd=0,rtm;const G=()=>DATA.guns[S.gun];
-function setAim(v){aiming=v;aimT=0;$('ret').style.display=v?'block':'none';$('fire').style.display=v?'block':'none';$('aim').textContent=v?'構え解除':'構える';$('sneak').style.display=(v||aid==='base')?'none':'block';$('trapB').style.display=(v||aid==='base')?'none':'block';if(v){near=null;$('act').style.display='none'}}
 function sway(){const g=G();return(1.3-g.stab)*(aimT<1.5?2.5-aimT:1)*(moving?1.8:1)*(1-Math.min(.35,dogSum('coop')*DATA.dog.coopK))}
 function occTrunk(ax,az,bx,bz){const vx=bx-ax,vz=bz-az,L=vx*vx+vz*vz||1;for(const q of trees){const t=((q[0]-ax)*vx+(q[1]-az)*vz)/L;if(t<.02||t>.98)continue;if(Math.hypot(ax+vx*t-q[0],az+vz*t-q[1])<(q[2]||.3)+.15)return true}return false}
-function resCard(t,h){const e=$('res');e.innerHTML=`<b>${t}</b><br>${h}`;e.style.display='block';clearTimeout(rtm);rtm=setTimeout(()=>e.style.display='none',4500)}
 function capture(a){const D=a.D,rare=!!a.rare,sz=+(a.sz*(rare?1.15:1)).toFixed(1),e=S.dex[a.k]||(S.dex[a.k]={seen:0,caught:0,max:0}),first=e.caught===0,rec=sz>e.max;e.caught++;if(first)e.fc=Date.now();if(rec)e.max=sz;
  const r={id:'r'+Date.now().toString(36)+Math.floor(Math.random()*1e4),k:a.k,size:sz,area:aid,t:Date.now(),method:a.trap?'trap':'gun',gun:a.trap||S.gun,rare};S.records.push(r);S.bag.push(r.id);
  if(a.g){scene.remove(a.g);AN.splice(AN.indexOf(a),1)}addExp(Math.round(DATA.exp.catchBase*(1+D.catch)));mEvt('catch',a.k,{rare:!!a.rare});popHit(aid,a.k);if(!a.trap)dogGain('coop',8);save();return{r,D,first,rec}}
 function fire(){if(!aiming||paused||cd>0)return;const g=G();if((S.ammo[S.gun]||0)<=0){toast('弾切れ');return}
- S.ammo[S.gun]--;cd=g.reload;dogGain('coop',1);updInfo();cam.updateMatrixWorld();
+ S.ammo[S.gun]--;cd=g.reload;dogGain('coop',1);updInfo();shotFx(g);cam.updateMatrixWorld();
  const O=cam.position.clone(),V=new THREE.Vector3();cam.getWorldDirection(V);
  const rt=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0),up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1),p=player.position;
  const C=a=>new THREE.Vector3(a.g.position.x,a.D.body[1]/2+.2,a.g.position.z);
@@ -174,19 +160,15 @@ function fire(){if(!aiming||paused||cd>0)return;const g=G();if((S.ammo[S.gun]||0
  if(caught.length){t='捕獲成功！';h=caught.map(c=>`${c.D.name}　${c.r.size}kg　銃猟（${g.name}）${c.first?'<br>★初捕獲':''}${c.rec&&!c.first?'<br>★最大記録':''}${c.r.rare?'<br>★珍しい個体！':''}`).join('<br>');if(wounded)h+='<br>仕留められず逃げた個体あり'}
  else if(wounded){t='命中！ だが仕留められず逃走';h=(weak?g.name+'では威力が足りない。':'')+'地面の血痕を辿れば見つかるかもしれない'}
  else{t='命中失敗';h=fled?'動物は逃げ出した':'弾は外れた'}
- resCard(t,h)}
-function bagPanel(){const m={};for(const id of S.bag){const r=S.records.find(x=>x.id===id);if(r){const e=m[r.k]||(m[r.k]={n:0,t:0});e.n++;e.t+=r.size}}
- openPanel('持ち帰った獲物',Object.entries(m).map(([k,e])=>`<div class="card">${DATA.animals[k].name} ×${e.n}　（計 ${e.t.toFixed(1)}kg）</div>`).join('')+'<div class="card dim">売却・資源化は拠点の「所持品・売却所」で行えます。個体記録は売却後も残ります。</div>')}
-$('aim').onclick=()=>setAim(!aiming);
-$('fire').addEventListener('pointerdown',e=>{e.preventDefault();fire()});
-$('gun').onclick=()=>{const i=S.own.indexOf(S.gun);S.gun=S.own[(i+1)%S.own.length];aimT=0;updInfo()};
+hitMark(caught.length?'kill':wounded?'hit':'miss');resCard(t,h)}
+tap($('aim'),()=>setAim(!aiming));
+tap($('fire'),fire);
+tap($('gun'),()=>{const i=S.own.indexOf(S.gun);S.gun=S.own[(i+1)%S.own.length];aimT=0;updInfo()});
 /* ===== ミッション・経済（Phase 4） ===== */
 let cur=null;
 const gs=k=>S.gearOn.reduce((s,id)=>s+(DATA.gear[id][k]||0),0),gm=k=>S.gearOn.reduce((s,id)=>s*(DATA.gear[id][k]||1),1);
 const spend=n=>{if(S.money<n){toast('所持金が足りません');return false}S.money-=n;return true};
 function goalTxt(g){return({catch:'捕獲',see:'発見',sign:'痕跡調査',trap:'罠で捕獲'})[g.type]+(g.animal&&g.animal!=='*'?'：'+DATA.animals[g.animal].name:'')+condTxt(g.cond)}
-function updMis(){const e=$('mis'),A=S.missions.active;if(!A.length){e.style.display='none';return}e.style.display='block';
- const L=A.slice().sort((x,y)=>y.ready-x.ready).slice(0,3);e.innerHTML=L.map(a=>{const m=MD(a.id);return`${a.ready?'✅':'📋'} ${m.title}<br><span style="opacity:.7">${m.goals.map((g,i)=>goalTxt(g)+' '+Math.min(a.prog[i],g.n)+'/'+g.n).join(' ／ ')}</span>`}).join('<hr style="border:0;border-top:1px solid var(--ln);margin:4px 0">')+(A.length>3?'<br>…他'+(A.length-3)+'件':'')}
 function mEvt(t,k,x){let ch=false,rd=false;for(const a of S.missions.active){const m=MD(a.id);
   m.goals.forEach((g,i)=>{if(g.type===t&&(!g.animal||g.animal==='*'||g.animal===k)&&condOk(g.cond,x)&&a.prog[i]<g.n){a.prog[i]++;ch=true}});
   if(!a.ready&&m.goals.every((g,i)=>a.prog[i]>=g.n)){a.ready=true;rd=true;toast('ミッション達成！「'+m.title+'」— 拠点の掲示板で報酬を受け取れます')}}
@@ -227,29 +209,6 @@ function act2(a,d){const id=d.id;
  case'drop':S.missions.active=S.missions.active.filter(m=>m.id!==id);break;
  default:return false}
  updInfo();save();if(cur)cur();return true}
-function prepHtml(){let h='<div class="card"><b>銃</b><div class="row">';for(const id of S.own)h+=`<button ${S.gun===id?'class="pri"':''} data-a="selgun" data-id="${id}">${DATA.guns[id].name}（弾${S.ammo[id]||0}）</button>`;
- h+='</div><b>補助装備</b><div class="row">';if(!S.gearOwn.length)h+='<span style="opacity:.6">なし（ショップで購入）</span>';
- for(const id of S.gearOwn)h+=`<button ${S.gearOn.includes(id)?'class="pri"':''} data-a="gear" data-id="${id}">${DATA.gear[id].name}</button>`;
- return h+`</div><b>同行犬（最大${partyMax()}頭）</b><div class="row">${dogBtns()}</div>${(S.ammo[S.gun]||0)<=0?'<br>⚠ 選択中の銃の弾がありません':''}</div>`}
-function boardPanel(){cur=boardPanel;rollMissions();const M=Object.assign({},DATA.missions,S.gen),A=S.missions.active;let h='';
- for(const[slot,label,max]of[['main','メイン',1],['sub','サブ',2],['special','特別',1],['daily','デイリー（0時更新）',3],['weekly','ウィークリー（月曜更新）',2]]){const act=A.filter(a=>M[a.id].slot===slot);h+=`<h3>${label}（受注 ${act.length}/${max}）</h3>`;
-  for(const a of act){const m=M[a.id];h+=`<div class="card"><b>${a.ready?'✅ ':''}${m.title}</b><br><span style="opacity:.7">${m.reason}</span><br>${m.goals.map((g,i)=>goalTxt(g)+' '+Math.min(a.prog[i],g.n)+'/'+g.n).join(' ／ ')}<br>報酬 💰${m.fixed.money}＋追加報酬(確率)<div class="row">${a.ready?`<button class="pri" data-a="claim" data-id="${a.id}">報酬を受け取る</button>`:`<button data-a="drop" data-id="${a.id}">破棄</button>`}</div></div>`}
-  for(const[id,m]of Object.entries(M)){if(m.slot!==slot||m.rank>S.rank||S.missions.done[id]||A.some(a=>a.id===id))continue;
-   h+=`<div class="card"><b>${m.title}</b>（Rank ${m.rank}〜）<br><span style="opacity:.7">${m.reason}</span>${m.prior?'<br>※受注前に捕獲した所持中の獲物も対象':''}<br>${m.goals.map(g=>goalTxt(g)+' ×'+g.n).join(' ／ ')}<br>報酬 💰${m.fixed.money}＋追加報酬(確率)<div class="row">${act.length>=max?'<span style="opacity:.6">枠がいっぱいです</span>':`<button class="pri" data-a="accept" data-id="${id}">受注</button>`}</div></div>`}}
- openPanel('ミッション掲示板',h+'<div class="card dim">デイリー・ウィークリー・特別ミッションは Phase 7 で追加されます。</div>')}
-function shopPanel(){cur=shopPanel;let h=`<div class="card">所持金 💰${S.money}</div><h3>銃</h3>`;
- for(const id of Object.keys(DATA.guns)){const g=DATA.guns[id],own=S.own.includes(id);h+=`<div class="card"><b>${g.name}</b>　${own?'所持済み':'💰'+DATA.price[id]}${own?'':`<div class="row"><button class="pri" data-a="buyGun" data-id="${id}">購入</button></div>`}</div>`}
- h+='<h3>弾薬</h3>';for(const id of S.own){const k=DATA.ammoPack[id];h+=`<div class="card">${DATA.guns[id].name}の弾 ${k.n}発（所持 ${S.ammo[id]||0}）<div class="row"><button data-a="buyAmmo" data-id="${id}">💰${k.price}</button></div></div>`}
- h+='<h3>補助装備</h3>';for(const[id,g]of Object.entries(DATA.gear)){const own=S.gearOwn.includes(id);h+=`<div class="card"><b>${g.name}</b>　${g.desc}　${own?'所持済み':'💰'+g.price}${own?'':`<div class="row"><button class="pri" data-a="buyGear" data-id="${id}">購入</button></div>`}</div>`}
- h+='<h3>罠</h3>';for(const[id,T]of Object.entries(DATA.traps))h+=`<div class="card"><b>${T.name}</b>　${T.desc}<br>所持 ${S.trapInv[id]||0}　💰${T.price}<div class="row"><button data-a="buyTrap" data-id="${id}">購入</button></div></div>`;
- openPanel('ショップ',h)}
-function storagePanel(){cur=storagePanel;let h='';const bag=S.bag.map(id=>S.records.find(r=>r.id===id)).filter(Boolean);
- if(!bag.length)h+='<div class="card dim">売却できる獲物はありません。</div>';
- else{let tot=0;for(const r of bag){const p=priceOf(r),q=resOf(r);tot+=p;h+=`<div class="card"><b>${DATA.animals[r.k].name}</b> ${r.size}kg${r.rare?' ★珍しい個体':''}　💰${p}／肉${q.meat}・皮${q.hide}<div class="row"><button data-a="sell" data-id="${r.id}">売却</button><button data-a="proc" data-id="${r.id}">資源化</button></div></div>`}
-  h+=`<div class="row"><button class="pri" data-a="sellAll">すべて売却（💰${tot}）</button><button data-a="procAll">すべて資源化</button></div>`}
- h+=`<div class="card">資源：肉 ${S.res.meat}　皮 ${S.res.hide}<div class="row"><button data-a="sellHide">皮をすべて売る（💰${S.res.hide*DATA.res.hidePrice}）</button></div>`;
- DATA.exchange.forEach((x,i)=>{h+=`<div class="row"><button data-a="exch" data-id="${i}">${x.name}</button></div>`});
- openPanel(`所持品・売却所　💰${S.money}`,h+'</div><div class="card dim">肉は犬の餌にも使えるようになります（Phase 5）。</div>')}
 /* ===== 図鑑・犬・エリア解放・境界（Phase 5） ===== */
 const DG=[],BL=[];let dexTab='sp',wt=0;
 const mBlood=new THREE.MeshBasicMaterial({color:0x7a1515});
@@ -266,17 +225,7 @@ function restDogs(dt){for(const d of S.dogs)d.fatigue=Math.max(0,(d.fatigue||0)-
 function checkUnlock(){for(const[id,A]of Object.entries(DATA.areas)){if(id==='base'||S.unlocked.includes(id))continue;if(S.rank>=A.unlockRank&&(!A.needMission||S.missions.done[A.needMission])){S.unlocked.push(id);toast('エリア解放：'+A.name)}}
  if(S.rank>=DATA.dog.partyRank&&!S.dogs.some(d=>d.id==='dog2')){S.dogs.push(mkDog('dog2','コタロウ',{find:.25,track:.6,coop:.3}));toast('新しい犬「コタロウ」が仲間になった！同行は最大2頭')}}
 function dogBtns(){return S.dogs.map(d=>`<button ${S.party.includes(d.id)?'class="pri"':''} data-a="party" data-id="${d.id}">${d.name} Lv${d.lv}（疲労${Math.round(d.fatigue)}%）</button>`).join('')}
-function kennelPanel(){cur=kennelPanel;let h=`<div class="card dim">肉 ${S.res.meat}　餌は任意です（与えなくてもペナルティはありません）。拠点で休むと疲労は自動回復します。</div>`;
- for(const d of S.dogs){const a=d.ab;h+=`<div class="card"><b>${d.name}</b>　Lv${d.lv}${d.lv>=DATA.dog.maxLv?'（最大）':`　EXP ${d.exp}/${dogNeed(d.lv)}`}<br>発見 ${a.find.toFixed(2)}　追跡 ${a.track.toFixed(2)}　協力 ${a.coop.toFixed(2)}<br>疲労 ${Math.round(d.fatigue)}%${S.party.includes(d.id)?'　（同行予定）':''}<div class="row"><button data-a="feed" data-id="${d.id}">肉を与える（肉1）</button></div></div>`}
- openPanel('犬舎',h+`<div class="card dim">同行犬の選択は「出発ゲート」で行います（最大${partyMax()}頭）。</div>`)}
 const fmt=t=>new Date(t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-function dexPanel(){cur=dexPanel;let h=`<div class="row"><button ${dexTab==='sp'?'class="pri"':''} data-a="dextab" data-id="sp">種別図鑑</button><button ${dexTab==='rec'?'class="pri"':''} data-a="dextab" data-id="rec">個体記録</button></div>`;
- if(dexTab==='sp'){for(const[k,D]of Object.entries(DATA.animals)){const e=S.dex[k];if(!e||!e.seen){h+='<div class="card dim">？？？　（未発見）</div>';continue}
-  const ar=Object.values(DATA.areas).filter(A=>A.spawn&&A.spawn[k]).map(A=>A.name).join('・')||'—';
-  h+=`<div class="card"><b>${D.name}</b>　${D.habit}<br>発見 ${e.seen}　捕獲 ${e.caught}　最大 ${e.max?e.max+'kg':'—'}　珍しい個体の発見 ${e.rare||0}<br>出現：${ar}<br>${e.fs?'初発見 '+fmt(e.fs):''}${e.fc?'　初捕獲 '+fmt(e.fc):''}</div>`}}
- else{const L=S.records.slice(-60).reverse();if(!L.length)h+='<div class="card dim">まだ記録がありません。</div>';
-  for(const r of L)h+=`<div class="card"><b>${DATA.animals[r.k].name}</b> ${r.size}kg${r.rare?' ★':''}<br>${fmt(r.t)}　${(DATA.areas[r.area]||{}).name||'?'}　${r.method==='gun'?'銃猟':'罠猟'}${r.fate==='sold'?'（売却済）':r.fate==='processed'?'（資源化済）':'（所持中）'}</div>`}
- openPanel('図鑑・記録',h)}
 /* ===== 罠システム（Phase 6：現実時間・タイムスタンプ管理） ===== */
 const TM={},TA={};let ttmr=null;
 const trapLimit=()=>DATA.trapLimits.reduce((m,[r,l])=>S.rank>=r?l:m,3);
@@ -319,15 +268,7 @@ function trapAct(id){const t=S.traps.find(x=>x.id===id);if(!t)return;near=null;$
  if(t.type==='snare'&&!t.chk){t.chk=true;save();toast('くくり罠に獲物がかかっている。回収できる');return}
  const D=DATA.animals[t.k],c=capture({k:t.k,D,sz:t.size,rare:t.rare,g:null,trap:t.type});S.traps.splice(S.traps.indexOf(t),1);S.trapInv[t.type]++;mEvt('trap',t.k,{rare:t.rare});syncTM();schedTraps();save();
  resCard('罠猟：回収完了',`${D.name}　${c.r.size}kg　${DATA.traps[t.type].name}${c.first?'<br>★初捕獲':''}${c.rec&&!c.first?'<br>★最大記録':''}${c.r.rare?'<br>★珍しい個体！':''}`)}
-function trapPanel(){cur=trapPanel;const stp=stepTraps(Date.now());if(stp.length){save();report(stp);syncTM()}
- let h=`<div class="card">設置中 ${S.traps.length}/${trapLimit()}　所持：${Object.entries(DATA.traps).map(([k,T])=>T.name+' '+(S.trapInv[k]||0)).join('・')}</div>`;
- if(aid!=='base')h+='<div class="row">'+Object.entries(DATA.traps).map(([k,T])=>`<button class="pri" data-a="place" data-id="${k}">${T.name}を設置</button>`).join('')+'</div>';else h+='<div class="card dim">罠の設置はフィールドで行います。</div>';
- if(!S.traps.length)h+='<div class="card dim">設置中の罠はありません。</div>';
- for(const t of S.traps){const T=DATA.traps[t.type],rem=t.at+DATA.trap.life-Date.now(),st=t.st==='set'?'稼働中':(t.type==='snare'?'獲物あり（ミニマップに表示）':'動物がかかったようだ（現地で確認・回収）');
-  h+=`<div class="card"><b>${T.name}</b>　${DATA.areas[t.area].name}<br>設置 ${fmt(t.at)}${t.st==='set'?'　残り '+fmtRemain(rem):''}<br>${st}</div>`}
- const perm=typeof Notification==='undefined'?'未対応':({granted:'許可済み',denied:'拒否',default:'未設定'})[Notification.permission];
- openPanel('罠の状況',h+`<div class="card dim">罠は設置から最大約48時間、現実時間で進行します。無駄に期限切れになっても罰金はありません。<br>通知：${perm}　<button data-a="notif">通知を許可</button><br>※アプリを完全に閉じている間は通知できません。開いたときに結果を表示します。</div>`)}
-$('trapB').onclick=()=>{if(aid!=='base'&&!aiming)trapPanel()};
+tap($('trapB'),()=>{if(aid!=='base'&&!aiming)trapPanel()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)procTraps()});setInterval(procTraps,30000);
 /* ===== 時間帯・天候・イベント・日次/週次ミッション・生息数（Phase 7） ===== */
 let env=null,HL=null,SUN=null,RAIN=null,evT=0,wxT=0,envAcc=0;
@@ -379,12 +320,9 @@ function rollMissions(){const dk=dkey(new Date()),wk=wkey();let ch=false;
  for(const id in want)if(!S.gen[id]){S.gen[id]=want[id];ch=true}
  const live=new Set(Object.keys(want).concat(S.missions.active.map(a=>a.id)));for(const id of Object.keys(S.gen))if(!live.has(id)){delete S.gen[id];delete S.missions.done[id];ch=true}
  if(ch){updMis();save()}}
-function helpPanel(){cur=helpPanel;S.settings.help=1;save();openPanel('操作説明',`<div class="card"><b>移動・視点</b><br>画面の左側をドラッグで移動、右側をドラッグで視点を動かします。</div><div class="card"><b>探索</b><br>歩いて動物や痕跡を探します。痕跡や物音は動物のヒントです。近づくと「痕跡を調べる」ボタンが出ます。「通常移動」を「慎重移動」にすると気づかれにくくなります。</div><div class="card"><b>狩猟</b><br>「構える」で照準が出ます。「射撃」ボタンを押したときだけ撃ちます。動いているときや構えた直後は弾がばらつきます。</div><div class="card"><b>罠</b><br>「罠」ボタンで設置します。現実の時間で最大約48時間、アプリを閉じていても進みます。</div><div class="card"><b>拠点・保存</b><br>施設に近づくか、メニューから開けます。獲物は「所持品・売却所」で売却・資源化できます。進行は自動保存されます。</div>`)}
-function settingsPanel(){cur=settingsPanel;const v=S.settings.sens||1,b=(x,l)=>`<button ${v===x?'class="pri"':''} data-a="sens" data-id="${x}">${l}</button>`;
- openPanel('設定',`<div class="card"><b>視点の感度</b><div class="row">${b(.7,'低')}${b(1,'標準')}${b(1.4,'高')}</div></div><div class="card dim">最終保存：${S.savedAt?fmt(S.savedAt):'未保存'}　（自動保存：画面遷移・重要な操作・アプリを離れるとき）</div>`)}
 /* ===== メインループ ===== */
 const mc=$('mc').getContext('2d');let last=0,fr=0;
-function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000||0,.05);last=t;if(!scene)return;
+function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000||0,.05);last=t;if(!scene)return;uiTick(dt);
  if(!paused){let sx=st.x,sy=st.y;if(keys.KeyA)sx-=1;if(keys.KeyD)sx+=1;if(keys.KeyW)sy-=1;if(keys.KeyS)sy+=1;
   const m=Math.min(1,Math.hypot(sx,sy));moving=m>.08;if(m>.08){const sp=(aiming?DATA.player.sneak*.6:sneak?DATA.player.sneak:DATA.player.walk)*m*gm('speed'),a=Math.atan2(sx,sy);
    const dx=-Math.sin(yaw)*sy-Math.cos(yaw)*sx,dz=-Math.cos(yaw)*sy+Math.sin(yaw)*sx;const l=Math.hypot(dx,dz)||1;
@@ -393,14 +331,14 @@ function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000||0,
    if(!hit){player.position.x=nx;player.position.z=nz}else if(Math.max(Math.abs(nx),Math.abs(nz))>area.half-6&&t>wt){wt=t+4000;toast('木々が深く茂っていて、これ以上は進めない')}faceY=Math.atan2(dx,dz)}
   if(aiming)faceY=yaw;let d=faceY-player.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));player.rotation.y+=d*Math.min(1,dt*12)}
  const p=player.position,D=6.5;cam.fov+=((aiming?G().zoom:60)-cam.fov)*Math.min(1,dt*10);cam.updateProjectionMatrix();
- if(aiming){const A=pitch-.35,ex=p.x-Math.sin(yaw)*1.6-Math.cos(yaw)*.5,ez=p.z-Math.cos(yaw)*1.6+Math.sin(yaw)*.5,ey=p.y+1.7;cam.position.set(ex,ey,ez);cam.lookAt(ex+Math.sin(yaw)*Math.cos(A)*50,ey-Math.sin(A)*50,ez+Math.cos(yaw)*Math.cos(A)*50)}
+ if(aiming){kick=Math.max(0,kick-dt*.6);const A=pitch-.35-kick,ex=p.x-Math.sin(yaw)*1.6-Math.cos(yaw)*.5,ez=p.z-Math.cos(yaw)*1.6+Math.sin(yaw)*.5,ey=p.y+1.7;cam.position.set(ex,ey,ez);cam.lookAt(ex+Math.sin(yaw)*Math.cos(A)*50,ey-Math.sin(A)*50,ez+Math.cos(yaw)*Math.cos(A)*50)}
  else{cam.position.set(p.x-Math.sin(yaw)*Math.cos(pitch)*D,p.y+1.6+Math.sin(pitch)*D,p.z-Math.cos(yaw)*Math.cos(pitch)*D);cam.lookAt(p.x,p.y+1.3,p.z)}
  let best=null;if(aid==='base'){restDogs(dt);let bd=4.6;for(const f of DATA.facilities){const d=Math.hypot(p.x-f.x,p.z-f.z);if(d<bd){bd=d;best=f}}}else if(!paused){field(dt,p);best=signNear(p)}
- if(best!==near){near=best;const a=$('act');a.style.display=near?'block':'none';if(near)a.textContent=near.sign?'痕跡を調べる':near.id==='gate'?'出発する':near.name}
+ if(best!==near){near=best;const a=$('act');a.style.display=near?'flex':'none';if(near)a.textContent=near.sign?'痕跡を調べる':near.id==='gate'?'出発する':near.name}
  R.render(scene,cam);
  if(++fr%6===0)drawMini(p);if(fr%90===0&&aid!=='base')updInfo()}
-function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+function resize(){layout();R.setSize(GW,GH,false);cam.aspect=GW/GH;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,200));resize();
 addEventListener('pagehide',()=>save());document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 addEventListener('error',e=>log('error',e.message));
-$('start').onclick=()=>{$('boot').style.display='none';go('base');requestAnimationFrame(loop);if(!S.settings.help)helpPanel()};
+tap($('start'),startGame);
