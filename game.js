@@ -34,10 +34,9 @@ const R=new THREE.WebGLRenderer({canvas:$('gl'),antialias:false});
 R.setPixelRatio(Math.min(devicePixelRatio||1,1.75));
 const cam=new THREE.PerspectiveCamera(60,1,.1,200);
 let scene,area='base',aid='base',trees=[],near=null,paused=false;
-const player=new THREE.Group();
-{const b=new THREE.Mesh(new THREE.CylinderGeometry(.3,.35,1.1,8),new THREE.MeshLambertMaterial({color:0x4d6b3a}));b.position.y=.75;
- const h=new THREE.Mesh(new THREE.SphereGeometry(.25,8,8),new THREE.MeshLambertMaterial({color:0xe3b98f}));h.position.y=1.5;
- const n=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.3),new THREE.MeshLambertMaterial({color:0x222}));n.position.set(0,1.5,.3);player.add(b,h,n)}
+const player=new THREE.Group();let PA=null;
+function buildPlayerModel(){if(PA)PA.dispose();PA=ModelKit.create('player',{height:1.75});player.add(PA.root)}
+buildPlayerModel();
 function rng(s){return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
 function label(t){const c=document.createElement('canvas');c.width=256;c.height=64;const g=c.getContext('2d');g.fillStyle='rgba(0,0,0,.6)';g.fillRect(0,0,256,64);g.fillStyle='#fff';g.font='bold 26px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(t,128,34);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));s.scale.set(4,1,1);return s}
@@ -88,13 +87,12 @@ function occ(ax,az,bx,bz){let n=0;const vx=bx-ax,vz=bz-az,L=vx*vx+vz*vz||1;for(c
 function pick(sp){let t=0;for(const k in sp)t+=sp[k];let r=Math.random()*t;for(const k in sp)if((r-=sp[k])<=0)return k}
 function dirText(dx,dz){const f=dx*Math.sin(yaw)+dz*Math.cos(yaw),r=-dx*Math.cos(yaw)+dz*Math.sin(yaw),a=Math.atan2(r,f),w=a<0?'左':'右',b=Math.abs(a);return b<.4?'正面':b<1.2?w+'前方':b<2?w+'側':'後方'}
 function addExp(n){S.exp+=n;while(DATA.rankExp[S.rank]!==undefined&&S.exp>=DATA.rankExp[S.rank]){S.rank++;toast('ランクアップ！ Rank '+S.rank);checkUnlock()}updInfo()}
-function mkAnimal(k,x,z){const D=DATA.animals[k],g=new THREE.Group(),b=D.body,rare=Math.random()<D.rare*(area.rareMul||1),m=new THREE.MeshLambertMaterial({color:rare?new THREE.Color(D.col).lerp(new THREE.Color(0xffffff),.5):D.col});
- const bd=new THREE.Mesh(new THREE.BoxGeometry(b[0],b[1],b[2]),m);bd.position.y=b[1]/2+.2;const h=new THREE.Mesh(new THREE.BoxGeometry(b[0]*.6,b[1]*.5,b[2]*.3),m);h.position.set(0,b[1]+.2,b[2]*.5);
- g.add(bd,h);g.position.set(cl(x),0,cl(z));g.rotation.y=Math.random()*6.28;scene.add(g);
- const a={k,D,g,rare,hx:g.position.x,hz:g.position.z,st:'normal',t:Math.random()*3,tx:0,tz:0,mv:false,seen:false,vis:0,hint:0,mk:null,dogd:false,sz:D.size[0]+Math.random()*(D.size[1]-D.size[0])};AN.push(a);return a}
+function mkAnimal(k,x,z){const D=DATA.animals[k],rare=Math.random()<D.rare*(area.rareMul||1),ac=ModelKit.create(k,{length:D.body[2],rare,tint:{color:0xffffff,amt:.5},seed:(Math.random()*1000)|0}),g=ac.root;
+ g.position.set(cl(x),0,cl(z));g.rotation.y=Math.random()*6.28;scene.add(g);
+ const a={k,D,g,ac,rare,hx:g.position.x,hz:g.position.z,st:'normal',t:Math.random()*3,tx:0,tz:0,mv:false,seen:false,vis:0,hint:0,mk:null,dogd:false,sz:D.size[0]+Math.random()*(D.size[1]-D.size[0])};AN.push(a);return a}
 function spawnAt(k,n,x,z){for(let i=0;i<n;i++)mkAnimal(k,x+(Math.random()-.5)*5,z+(Math.random()-.5)*5)}
 function initField(){AN.length=0;SG.length=0;pulses.length=0;near=null;$('act').style.display='none';dog=null;DG.length=0;BL.length=0;for(const k in TM)delete TM[k];const f=DATA.signs;signT=f.first[0]+Math.random()*(f.first[1]-f.first[0]);
- initEnv();if(!area.spawn)return;S.party.forEach((id,i)=>{const dm=new THREE.Mesh(new THREE.BoxGeometry(.3,.35,.6),new THREE.MeshLambertMaterial({color:i?0x6b4a2b:0xd8b070}));dm.position.set(player.position.x+1+i,.2,player.position.z+1);scene.add(dm);DG.push({m:dm})});
+ initEnv();if(!area.spawn)return;S.party.forEach((id,i)=>{const ac=ModelKit.create('dog',{length:.78}),dm=ac.root;if(i)ac.tint(0x6b4a2b,.7);dm.position.set(player.position.x+1+i,0,player.position.z+1);scene.add(dm);DG.push({m:dm,actor:ac})});
  const W=spawnW();while(AN.length<area.max){const k=pick(W),D=DATA.animals[k];let x,z;do{x=(Math.random()*2-1)*(area.half-3);z=(Math.random()*2-1)*(area.half-3)}while(Math.hypot(x-player.position.x,z-player.position.z)<DATA.spawnMin);
   spawnAt(k,D.group[0]+Math.floor(Math.random()*(D.group[1]-D.group[0]+1)),x,z)}}
 function stepA(a,ang,sp,dt){const g=a.g;for(const o of[0,1.1,-1.1]){const x=g.position.x+Math.sin(ang+o)*sp*dt,z=g.position.z+Math.cos(ang+o)*sp*dt;if(Math.abs(x)<area.half-1&&Math.abs(z)<area.half-1&&!blocked(x,z)){g.position.x=x;g.position.z=z;g.rotation.y=ang+o;return}}a.mv=false}
@@ -123,7 +121,7 @@ function spawnSign(p,force){const sp=spawnW();if(!area.spawn)return;const k=pick
 function signNear(p){if(aiming)return null;const tn=trapNear(p);if(tn)return tn;let best=null,bd=3.4;for(const s of SG){if(!s.noticed||s.done)continue;const d=Math.hypot(p.x-s.x,p.z-s.z);if(d<bd){bd=d;best=s.act||(s.act={sign:s,name:'痕跡を調べる',id:'sign'})}}return best}
 function inspect(s){if(s.done)return;s.done=true;const D=DATA.animals[s.k],w=s.type==='track'?'足跡':'食痕';if(s.mk)s.mk.visible=false;near=null;$('act').style.display='none';addExp(DATA.exp.sign);mEvt('sign',null,{});dogGain('track',2);
  if(s.fresh&&s.ref&&AN.includes(s.ref)){s.ref.hint=45;toast(D.name+'の'+w+'：まだ新しい。'+dirText(s.ref.g.position.x-player.position.x,s.ref.g.position.z-player.position.z)+'に気配がある'+(dogSum('track')>.35?`（約${Math.round(Math.hypot(s.ref.g.position.x-player.position.x,s.ref.g.position.z-player.position.z))}m）`:''))}else toast(D.name+'の'+w+'：古い痕跡だ。近くにはいなさそう')}
-function field(dt,p){tickEnv(dt,p);updAnimals(dt,p);for(const d of party())d.fatigue=Math.min(100,(d.fatigue||0)+dt/6);cd=Math.max(0,cd-dt);if(aiming){aimT+=dt;$('ret').style.transform='scale('+Math.min(2.6,.5+sway()*G().spread*30)+')'}
+function field(dt,p){tickEnv(dt,p);updAnimals(dt,p);animTick(dt);for(const d of party())d.fatigue=Math.min(100,(d.fatigue||0)+dt/6);cd=Math.max(0,cd-dt);if(aiming){aimT+=dt;$('ret').style.transform='scale('+Math.min(2.6,.5+sway()*G().spread*30)+')'}
  DG.forEach((o,i)=>{const m=o.m.position,sd=i?-1.1:1.1,tx=p.x-Math.sin(yaw)*(1.8+i*.8)+Math.cos(yaw)*sd,tz=p.z-Math.cos(yaw)*(1.8+i*.8)-Math.sin(yaw)*sd,k=Math.min(1,dt*3),ox=m.x,oz=m.z;m.x+=(tx-m.x)*k;m.z+=(tz-m.z)*k;if(Math.hypot(m.x-ox,m.z-oz)>.002)o.m.rotation.y=Math.atan2(m.x-ox,m.z-oz)});
  signT-=dt*(1+dogSum('track')*DATA.dog.trackK)*envSign();if(signT<=0){spawnSign(p);const f=DATA.signs.next;signT=f[0]+Math.random()*(f[1]-f[0])}
  for(const s of SG)if(!s.noticed&&Math.hypot(p.x-s.x,p.z-s.z)<9){s.noticed=true;s.mk=label('？痕跡');s.mk.scale.set(2.4,.6,1);s.mk.position.set(s.x,1.6,s.z);scene.add(s.mk);toast('何かの痕跡を見つけた')}
@@ -320,6 +318,12 @@ function rollMissions(){const dk=dkey(new Date()),wk=wkey();let ch=false;
  for(const id in want)if(!S.gen[id]){S.gen[id]=want[id];ch=true}
  const live=new Set(Object.keys(want).concat(S.missions.active.map(a=>a.id)));for(const id of Object.keys(S.gen))if(!live.has(id)){delete S.gen[id];delete S.missions.done[id];ch=true}
  if(ch){updMis();save()}}
+/* ===== モデルのアニメーション：実際の移動速度と行動状態に連動 ===== */
+function spdOf(o,x,z,dt){const v=o._px===undefined?0:Math.hypot(x-o._px,z-o._pz)/(dt>0?dt:1/60);o._px=x;o._pz=z;return v}
+function animTick(dt){
+ for(const a of AN){if(!a.ac)continue;const sp=spdOf(a,a.g.position.x,a.g.position.z,dt),hint=(a.st==='alert'||a.st==='prep')?'alert':(a.st==='flee'?'flee':null);a.ac.update(dt,Math.min(sp,12),hint)}
+ for(const o of DG){if(!o.actor)continue;o.actor.update(dt,Math.min(spdOf(o,o.m.position.x,o.m.position.z,dt),10),null)}}
+function playerAnim(dt){if(!PA)return;PA.update(dt,Math.min(spdOf(PA,player.position.x,player.position.z,dt),8),aiming?'aim':null)}
 /* ===== メインループ ===== */
 const mc=$('mc').getContext('2d');let last=0,fr=0;
 function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000||0,.05);last=t;if(!scene)return;uiTick(dt);
@@ -329,7 +333,7 @@ function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000||0,
    let nx=player.position.x+dx/l*sp*dt,nz=player.position.z+dz/l*sp*dt;const H=area.half-.6;nx=Math.max(-H,Math.min(H,nx));nz=Math.max(-H,Math.min(H,nz));
    let hit=false;for(const q of trees){if(Math.hypot(nx-q[0],nz-q[1])<(q[2]||.7)+DATA.player.radius){hit=true;break}}
    if(!hit){player.position.x=nx;player.position.z=nz}else if(Math.max(Math.abs(nx),Math.abs(nz))>area.half-6&&t>wt){wt=t+4000;toast('木々が深く茂っていて、これ以上は進めない')}faceY=Math.atan2(dx,dz)}
-  if(aiming)faceY=yaw;let d=faceY-player.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));player.rotation.y+=d*Math.min(1,dt*12)}
+  if(aiming)faceY=yaw;let d=faceY-player.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));player.rotation.y+=d*Math.min(1,dt*12)}playerAnim(dt);
  const p=player.position,D=6.5;cam.fov+=((aiming?G().zoom:60)-cam.fov)*Math.min(1,dt*10);cam.updateProjectionMatrix();
  if(aiming){kick=Math.max(0,kick-dt*.6);const A=pitch-.35-kick,ex=p.x-Math.sin(yaw)*1.6-Math.cos(yaw)*.5,ez=p.z-Math.cos(yaw)*1.6+Math.sin(yaw)*.5,ey=p.y+1.7;cam.position.set(ex,ey,ez);cam.lookAt(ex+Math.sin(yaw)*Math.cos(A)*50,ey-Math.sin(A)*50,ez+Math.cos(yaw)*Math.cos(A)*50)}
  else{cam.position.set(p.x-Math.sin(yaw)*Math.cos(pitch)*D,p.y+1.6+Math.sin(pitch)*D,p.z-Math.cos(yaw)*Math.cos(pitch)*D);cam.lookAt(p.x,p.y+1.3,p.z)}

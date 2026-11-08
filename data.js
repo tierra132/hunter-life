@@ -88,6 +88,20 @@ const DATA={
   {title:'駆除の依頼',reason:'今週中に数を減らしたいと依頼が来ている。',type:'catch',animal:'?',n:[3,5],money:140,exp:12},
   {title:'罠猟の実績',reason:'罠による捕獲を安定させたい。',type:'trap',animal:'*',n:[2,3],money:260,exp:18}
  ],
+ /* 3Dモデルの定義：素材(GLB)を assets/models/ に置くと自動で使われ、無ければ関節付きの代替モデルで動きます。
+    credit に作者・ライセンス・URLを必ず記入します（CC BY等の表記義務のため。記入が無いとテストが失敗します） */
+ modelDefaults:{optional:true,yaw:0,yOffset:0,thr:{idle:.15,run:3.2},ref:{walk:1.4,run:6},credit:null,
+  clips:{idle:['Idle','Idle_1','Idle_2','Stand','Standing'],walk:['Walk','Walking','Trot','Walk_Forward'],run:['Run','Gallop','Running','Sprint'],alert:['Alert','Idle_Alert','Look','Idle_2'],aim:['Aim','Aiming','Rifle_Aim']}},
+ models:{
+  player:{rig:'human',fitBy:'height',fitSize:1.75,src:'assets/models/player.glb',look:{jacket:0x4d6b3a,pants:0x3b3a2e,boot:0x2a2118,cap:0x6e5a2e,skin:0xe3b98f,pack:0x5a4a32}},
+  dog:{rig:'quad',body:[.3,.5,.78],src:'assets/models/dog.glb',gait:{walkAmp:.55,runAmp:1,stride:1.1},look:{col:0xd8b070,belly:0xf0e2c4,leg:.45,neck:.2,headS:1.1,snout:.2,earLen:.1,earW:.06,tail:.18,tailW:.06}},
+  deer:{rig:'quad',src:'assets/models/deer.glb',gait:{walkAmp:.45,runAmp:.85,stride:1.0},look:{col:0x9a6b3c,belly:0xe6d9bd,leg:.6,neck:.42,headS:.9,snout:.22,earLen:.14,earW:.06,tail:.1,tailW:.06,antler:true}},
+  boar:{rig:'quad',src:'assets/models/boar.glb',gait:{walkAmp:.4,runAmp:.8,stride:.9,headLow:.18},look:{col:0x4a3a30,belly:0x5a4838,leg:.38,neck:.12,headS:1.1,snout:.3,earLen:.08,earW:.06,tail:.1,tailW:.03,ridge:true,tusk:true,dark:0x2a2018,legCol:0x3a2c24}},
+  tanuki:{rig:'quad',src:'assets/models/tanuki.glb',gait:{walkAmp:.5,runAmp:.9,stride:1.0},look:{col:0x8a7a60,belly:0xb8a98a,leg:.3,neck:.12,headS:1.05,snout:.17,earLen:.06,earW:.05,tail:.2,tailW:.09,mask:0x2a2420,legCol:0x2a2420,tailCol:0x6e6048}},
+  hare:{rig:'quad',src:'assets/models/hare.glb',gait:{hop:true,walkAmp:.5,runAmp:1.1,stride:1.6},look:{col:0xb09a7a,belly:0xefe6d2,leg:.55,neck:.1,headS:.95,snout:.1,earLen:.5,earW:.05,tail:.05,tailW:.05,tailCol:0xefe6d2}},
+  fox:{rig:'quad',src:'assets/models/fox.glb',gait:{walkAmp:.5,runAmp:1.0,stride:1.1},look:{col:0xc8702a,belly:0xf2e8da,leg:.5,neck:.2,headS:.95,snout:.3,earLen:.16,earW:.05,tail:.38,tailW:.09,tailTip:0xf5efe5,legCol:0x2a1c14,earCol:0x2a1c14}},
+  bear:{rig:'quad',src:'assets/models/bear.glb',gait:{walkAmp:.35,runAmp:.7,stride:.8,bob:.03},look:{col:0x1c1c1c,belly:0x2a2a2a,leg:.4,neck:.14,headS:1.2,snout:.2,earLen:.07,earW:.07,tail:.05,tailW:.04}}
+ },
  facilities:[
   {id:'mission',name:'ミッション掲示板',x:-10,z:-9,c:0xb5651d,phase:4},
   {id:'shop',name:'ショップ',x:10,z:-9,c:0x3d6fb5,phase:4},

@@ -21,7 +21,11 @@ async function tryLandscape(){/* 可能な端末(主にAndroid)では全画面�
 function tap(el,fn){const on=()=>el.classList.add('prs'),off=()=>el.classList.remove('prs');
  el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();on();fn(e)});
  for(const t of['pointerup','pointercancel','pointerleave'])el.addEventListener(t,off)}
-function startGame(){tryLandscape();audioInit();$('boot').style.display='none';go('base');requestAnimationFrame(loop);if(!S.settings.help)helpPanel()}
+let started=false;
+async function startGame(){if(started)return;started=true;tryLandscape();audioInit();$('start').style.display='none';
+ try{await ModelKit.preloadAll((d,n)=>{$('bootMsg').textContent='3Dモデルを準備中 '+d+'/'+n})}catch(e){}
+ const st=ModelKit.status();if(st.errors.length)setTimeout(()=>toast('一部の3Dモデルを読み込めませんでした（簡易表示で動作します）','warn'),1500);
+ buildPlayerModel();$('boot').style.display='none';go('base');requestAnimationFrame(loop);if(!S.settings.help)helpPanel()}
 
 /* ===== 通知：画面中央を避け、上端のHUDの間に小さく表示。重要度別・連続時は集約 ===== */
 const NDUR={info:2200,good:2800,warn:3200,imp:4200,res:4500},NOTES=[];let nTm=null;
@@ -76,6 +80,7 @@ const tabs=(key,list,def)=>{const c=UI.tab[key]&&list.some(x=>x[0]===UI.tab[key]
 function uiAct(a,d){
  if(a==='tab'){const[k,v]=d.id.split(':');UI.tab[k]=v;if(cur)cur();return true}
  if(a==='flip'){flipRot();if(cur)cur();return true}
+ if(a==='credits'){creditsPanel();return true}
  if(a==='opt'){const[k,v]=d.id.split(':');S.settings[k]=isNaN(+v)?v:+v;save();if(k==='sound'&&+v)audioInit();if(cur)cur();return true}
  return false}
 
@@ -159,9 +164,12 @@ function trapPanel(){cur=trapPanel;const stp=stepTraps(Date.now());if(stp.length
 function helpPanel(){cur=helpPanel;S.settings.help=1;save();
  const c=(t,b)=>`<div class="card"><b>${t}</b><br>${b}</div>`;
  openPanel('操作説明',c('🕹 移動・視点','画面の左側をドラッグで移動、右側をドラッグで視点を動かします。縦持ちでも自動で横表示になります。')+c('🔎 探索','歩いて動物や痕跡を探します。痕跡や物音は動物のヒントです。近づくと「痕跡を調べる」が出ます。🚶ボタンで慎重移動にすると気づかれにくくなります。')+c('🎯 狩猟','🎯で構えると照準が出ます。<b>歩きながらでも構えを切り替えられます。</b>「撃つ」を押したときだけ発砲し、閃光・音・振動と、命中／外れの表示が出ます。動いているときや構えた直後は弾がばらつきます。')+c('🪤 罠','🪤で設置します。現実の時間で最大48時間かけて進み、アプリを閉じていても進みます。')+c('🏠 拠点・保存','☰メニューから施設を開けます。獲物は「所持品・売却」で売却・資源化できます。進行は自動保存されます。'))}
+function modelStatusTxt(){const st=ModelKit.status();return st.glb.length?`外部モデル：${st.glb.join('・')}　／　簡易表示：${st.fallback.join('・')||'なし'}`:'外部モデルは未導入です（すべて簡易表示）。素材を assets/models/ に置くと自動で使われます。'}
+function creditsPanel(){cur=creditsPanel;const c=ModelKit.credits();openPanel('クレジット',c.length?c.map(x=>`<div class="card"><b>${x.title||x.kind}</b>（${x.kind}）<br><span class="mut">作者：${x.author||'—'}　ライセンス：${x.license||'—'}</span><br><small class="mut">${x.url||''}</small></div>`).join(''):'<div class="card dim">表示する外部素材はありません。</div>')}
 function settingsPanel(){cur=settingsPanel;const ch=(k,v,l)=>`<button class="${UD(k,k==='sens'?1:1)===v?'pri':''}" data-a="opt" data-id="${k}:${v}">${l}</button>`;
  openPanel('設定',`<div class="card"><b>視点の感度</b><div class="row">${ch('sens',.7,'低')}${ch('sens',1,'標準')}${ch('sens',1.4,'高')}</div></div>
  <div class="card"><b>効果音</b>（発砲音）<div class="row">${ch('sound',1,'ON')}${ch('sound',0,'OFF')}</div></div>
  <div class="card"><b>振動</b>（発砲時・対応端末のみ）<div class="row">${ch('vib',1,'ON')}${ch('vib',0,'OFF')}</div></div>
  <div class="card"><b>画面の向き</b><br><span class="mut">${ROT?'縦向きのため、ゲーム画面を回転して横表示しています。向きが逆なら反転してください。':'横向きで表示中です。'}</span>${ROT?`<div class="row"><button data-a="flip">↻ 表示の向きを反転（現在：${ROT===1?'時計回り':'反時計回り'}）</button></div>`:''}</div>
+ <div class="card"><b>3Dモデル</b><br><span class="mut">${modelStatusTxt()}</span><div class="row"><button data-a="credits">クレジット（素材の権利表記）</button></div></div>
  <div class="card"><b>データ</b><br><span class="mut">最終保存：${S.savedAt?fmt(S.savedAt):'未保存'}　（自動保存：画面移動・重要な操作・アプリを離れるとき）</span><div class="row"><button data-a="save">今すぐ保存</button><button data-a="reset">データを初期化</button></div></div>`)}

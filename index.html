@@ -27,11 +27,14 @@
   <button class="rbtn" id="fire"><span>撃つ</span><small id="fa"></small></button>
   <div class="panel" id="panel"></div>
  </div>
- <div id="boot"><div class="bt">野生動物ハンティングライフ</div><div class="bs">横向きで遊びます（縦向きでも自動で横表示になります）</div><button class="pri big" id="start">はじめる</button></div>
+ <div id="boot"><div class="bt">野生動物ハンティングライフ</div><div class="bs">横向きで遊びます（縦向きでも自動で横表示になります）</div><div class="bs" id="bootMsg"></div><button class="pri big" id="start">はじめる</button></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>if(typeof THREE==='undefined'){document.getElementById('boot').innerHTML='<div style="padding:24px;line-height:1.7">3Dライブラリを読み込めませんでした。<br>通信状態を確認して、ページを再読み込みしてください。<br>（セーブデータは消えません）</div>'}</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script src="data.js"></script>
+<script src="models.js"></script>
 <script src="ui.js"></script>
 <script src="game.js"></script>
 </body></html>
