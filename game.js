@@ -40,23 +40,17 @@ buildPlayerModel();
 function rng(s){return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
 function label(t){const c=document.createElement('canvas');c.width=256;c.height=64;const g=c.getContext('2d');g.fillStyle='rgba(0,0,0,.6)';g.fillRect(0,0,256,64);g.fillStyle='#fff';g.font='bold 26px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(t,128,34);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));s.scale.set(4,1,1);return s}
+let TER=Terrain.FLAT;const TG=Terrain.makeGrid(8);
 function build(id){
  const A=DATA.areas[id];scene=new THREE.Scene();scene.background=new THREE.Color(A.sky);scene.fog=new THREE.Fog(A.sky,25,90);
  HL=new THREE.HemisphereLight(0xffffff,0x556644,.95);SUN=new THREE.DirectionalLight(0xffffff,.6);SUN.position.set(30,50,20);scene.add(HL,SUN);RAIN=null;
- const g=new THREE.Mesh(new THREE.PlaneGeometry(A.half*2+240,A.half*2+240),new THREE.MeshLambertMaterial({color:A.ground}));g.rotation.x=-Math.PI/2;scene.add(g);
- const rnd=rng(id==='base'?7:id.length*977+13);trees=[];
- const n=A.trees,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.25,2,6),new THREE.MeshLambertMaterial({color:0x6b4a2b}),n),
-  cr=new THREE.InstancedMesh(new THREE.ConeGeometry(1.4,3.2,7),new THREE.MeshLambertMaterial({color:0x2f6b36}),n),m=new THREE.Matrix4();
- for(let i=0;i<n;i++){let x,z;do{x=(rnd()*2-1)*A.half;z=(rnd()*2-1)*A.half}while(id==='base'?(Math.abs(x)<17&&Math.abs(z)<16):(Math.hypot(x,z)<6));
-  const s=.8+rnd()*.7;trees.push([x,z]);m.makeScale(s,s,s).setPosition(x,s,z);tr.setMatrixAt(i,m);m.makeScale(s,s,s).setPosition(x,2+s*1.2,z);cr.setMatrixAt(i,m)}
- scene.add(tr,cr);
- belt(A.half);
+ TER=Terrain.make(DATA.terrain[id],A.half);TG.clear();trees=[];buildGround(A,id);plantTrees(A,id);plantRocks(A,id);belt(A.half);
 
  if(id==='base')for(const f of DATA.facilities){const b=new THREE.Mesh(new THREE.BoxGeometry(4,3,3),new THREE.MeshLambertMaterial({color:f.c}));b.position.set(f.x,1.5,f.z);scene.add(b);
-  const l=label(f.name);l.position.set(f.x,4.2,f.z);scene.add(l);trees.push([f.x,f.z,2.2])}
+  const l=label(f.name);l.position.set(f.x,4.2,f.z);scene.add(l);addCol(f.x,f.z,2.2,'bldg')}
  scene.add(player);area=A;aid=id}
 function go(id){paused=false;closePanel();build(id);const A=DATA.areas[id];
- player.position.set(0,0,id==='base'?10:0);yaw=id==='base'?Math.PI:0;pitch=.35;faceY=yaw;
+ player.position.set(0,TER.h(0,id==='base'?10:0),id==='base'?10:0);yaw=id==='base'?Math.PI:0;pitch=.35;faceY=yaw;
  $('sneak').style.display=id==='base'?'none':'block';setSneak(false);for(const b of['aim','trapB'])$(b).style.display=id==='base'?'none':'flex';setAim(false);
  if(id==='base'&&S.own.includes('airgun')&&(S.ammo.airgun||0)<5&&S.money<DATA.ammoPack.airgun.price){S.ammo.airgun=10;toast('見習い支給：空気銃の弾10発')}
  initField();checkUnlock();procTraps();updInfo();save();if(id==='base'&&S.bag.length)storagePanel()}
@@ -82,20 +76,19 @@ tap($('act'),()=>{if(!near||paused)return;if(near.sign)return inspect(near.sign)
 /* ===== 動物・痕跡・発見（Phase 2） ===== */
 const AN=[],SG=[],pulses=[];let signT=0,moving=false,dog=null;
 const cl=v=>Math.max(-(area.half-1),Math.min(area.half-1,v));
-const blocked=(x,z)=>trees.some(q=>Math.hypot(x-q[0],z-q[1])<(q[2]||.7)+.4);
-function occ(ax,az,bx,bz){let n=0;const vx=bx-ax,vz=bz-az,L=vx*vx+vz*vz||1;for(const q of trees){const t=((q[0]-ax)*vx+(q[1]-az)*vz)/L;if(t<.05||t>.95)continue;if(Math.hypot(ax+vx*t-q[0],az+vz*t-q[1])<.9&&++n>=2)return true}return false}
 function pick(sp){let t=0;for(const k in sp)t+=sp[k];let r=Math.random()*t;for(const k in sp)if((r-=sp[k])<=0)return k}
 function dirText(dx,dz){const f=dx*Math.sin(yaw)+dz*Math.cos(yaw),r=-dx*Math.cos(yaw)+dz*Math.sin(yaw),a=Math.atan2(r,f),w=a<0?'左':'右',b=Math.abs(a);return b<.4?'正面':b<1.2?w+'前方':b<2?w+'側':'後方'}
 function addExp(n){S.exp+=n;while(DATA.rankExp[S.rank]!==undefined&&S.exp>=DATA.rankExp[S.rank]){S.rank++;toast('ランクアップ！ Rank '+S.rank);checkUnlock()}updInfo()}
 function mkAnimal(k,x,z){const D=DATA.animals[k],rare=Math.random()<D.rare*(area.rareMul||1),ac=ModelKit.create(k,{length:D.body[2],rare,tint:{color:0xffffff,amt:.5},seed:(Math.random()*1000)|0}),g=ac.root;
- g.position.set(cl(x),0,cl(z));g.rotation.y=Math.random()*6.28;scene.add(g);
+ const qy=Terrain.nearestOk(TER,cl(x),cl(z),10,(u,v)=>TER.reach(u,v))||Terrain.nearestOk(TER,cl(x),cl(z),30)||[cl(x),cl(z)];g.position.set(qy[0],TER.h(qy[0],qy[1]),qy[1]);g.rotation.y=Math.random()*6.28;scene.add(g);
  const a={k,D,g,ac,rare,hx:g.position.x,hz:g.position.z,st:'normal',t:Math.random()*3,tx:0,tz:0,mv:false,seen:false,vis:0,hint:0,mk:null,dogd:false,sz:D.size[0]+Math.random()*(D.size[1]-D.size[0])};AN.push(a);return a}
 function spawnAt(k,n,x,z){for(let i=0;i<n;i++)mkAnimal(k,x+(Math.random()-.5)*5,z+(Math.random()-.5)*5)}
 function initField(){AN.length=0;SG.length=0;pulses.length=0;near=null;$('act').style.display='none';dog=null;DG.length=0;BL.length=0;for(const k in TM)delete TM[k];const f=DATA.signs;signT=f.first[0]+Math.random()*(f.first[1]-f.first[0]);
- initEnv();if(!area.spawn)return;S.party.forEach((id,i)=>{const ac=ModelKit.create('dog',{length:.78}),dm=ac.root;if(i)ac.tint(0x6b4a2b,.7);dm.position.set(player.position.x+1+i,0,player.position.z+1);scene.add(dm);DG.push({m:dm,actor:ac})});
- const W=spawnW();while(AN.length<area.max){const k=pick(W),D=DATA.animals[k];let x,z;do{x=(Math.random()*2-1)*(area.half-3);z=(Math.random()*2-1)*(area.half-3)}while(Math.hypot(x-player.position.x,z-player.position.z)<DATA.spawnMin);
+ initEnv();if(!area.spawn)return;S.party.forEach((id,i)=>{const ac=ModelKit.create('dog',{length:.78}),dm=ac.root;if(i)ac.tint(0x6b4a2b,.7);dm.position.set(player.position.x+1+i,player.position.y,player.position.z+1);scene.add(dm);DG.push({m:dm,actor:ac})});
+ const W=spawnW();while(AN.length<area.max){const k=pick(W),D=DATA.animals[k];const sp0=Terrain.pickSpot(TER,Math.random,area.half,{zones:DATA.animalZones[k],minFrom:[player.position.x,player.position.z],minDist:DATA.spawnMin,test:(a,b)=>TER.reach(a,b),tries:150})||Terrain.nearestOk(TER,(Math.random()*2-1)*(area.half-8),(Math.random()*2-1)*(area.half-8),30)||[0,14],x=sp0[0],z=sp0[1];
   spawnAt(k,D.group[0]+Math.floor(Math.random()*(D.group[1]-D.group[0]+1)),x,z)}}
-function stepA(a,ang,sp,dt){const g=a.g;for(const o of[0,1.1,-1.1]){const x=g.position.x+Math.sin(ang+o)*sp*dt,z=g.position.z+Math.cos(ang+o)*sp*dt;if(Math.abs(x)<area.half-1&&Math.abs(z)<area.half-1&&!blocked(x,z)){g.position.x=x;g.position.z=z;g.rotation.y=ang+o;return}}a.mv=false}
+function stepA(a,ang,sp,dt){const g=a.g;for(const o of[0,1.1,-1.1]){const dx=Math.sin(ang+o),dz=Math.cos(ang+o),k=sp*TER.speedMul(g.position.x,g.position.z,dx,dz)*dt,x=g.position.x+dx*k,z=g.position.z+dz*k;
+  if(Math.abs(x)<area.half-1&&Math.abs(z)<area.half-1&&!blocked(x,z)&&TER.walkable(x,z)&&!TER.isWater(x,z)){g.position.x=x;g.position.z=z;g.position.y=TER.h(x,z);g.rotation.y=ang+o;return}}a.mv=false}
 function discover(a){a.seen=true;const D=a.D,e=S.dex[a.k]||(S.dex[a.k]={seen:0,caught:0,max:0}),first=e.seen===0;e.seen++;if(first)e.fs=Date.now();if(a.rare)e.rare=(e.rare||0)+1;
  addExp(DATA.exp.animal);mEvt('see',a.k,{rare:!!a.rare});dogGain('find',4);toast(first?D.name+'を発見！（図鑑に登録）':D.name+'を発見！')}
 function updAnimals(dt,p){for(const a of AN){const g=a.g,D=a.D,dx=g.position.x-p.x,dz=g.position.z-p.z,d=Math.hypot(dx,dz)||.01;a.hint=Math.max(0,a.hint-dt);if(a.wound>0){a.wound-=dt;a.bt=(a.bt||0)-dt;if(a.bt<=0&&a.st==='flee'){a.bt=.8;blood(g.position.x,g.position.z)}}
@@ -106,15 +99,15 @@ function updAnimals(dt,p){for(const a of AN){const g=a.g,D=a.D,dx=g.position.x-p
   else if(a.st==='alert'){g.rotation.y=Math.atan2(-dx,-dz);a.t-=dt;if(d>sense*1.6){a.st='normal';a.t=2}else if(a.t<=0||d<sense*.5){a.st='prep';a.t=.5}}
   else if(a.st==='prep'){g.rotation.y=Math.atan2(-dx,-dz);a.t-=dt;if(a.t<=0){a.st='flee';a.t=6}}
   else{stepA(a,Math.atan2(dx,dz),D.flee,dt);a.t-=dt;if((a.t<=0&&d>28)||a.t<-6){a.st='normal';a.hx=g.position.x;a.hz=g.position.z;a.t=2}}
-  if(!a.seen){const cosA=(dx*Math.sin(yaw)+dz*Math.cos(yaw))/d,Rg=DATA.sight.base*(1-D.disc*.5)*(1+dogSum('find')*DATA.dog.findK+gs('sight'))*(area.sight||1)*envSight();
-   if(d<Rg&&cosA>DATA.sight.cone&&!occ(p.x,p.z,g.position.x,g.position.z)){a.vis+=dt;if(a.vis>.7)discover(a)}else a.vis=Math.max(0,a.vis-dt);
+  if(!a.seen){const cosA=(dx*Math.sin(yaw)+dz*Math.cos(yaw))/d,Rg=DATA.sight.base*(1-D.disc*.5)*(1+dogSum('find')*DATA.dog.findK+gs('sight'))*(area.sight||1)*envSight()*TER.vantage(p.y,g.position.y);
+   if(d<Rg&&cosA>DATA.sight.cone&&!occ(p.x,p.z,g.position.x,g.position.z)&&TER.los(p.x,p.y+1.6,p.z,g.position.x,g.position.y+D.body[1]*.8,g.position.z)){a.vis+=dt;if(a.vis>.7)discover(a)}else a.vis=Math.max(0,a.vis-dt);
    if(!a.dogd&&d<22){a.dogd=true;toast(party()[0].name+'が何かに反応している…')}}
   else if(a.mk)a.mk.visible=d<55}}
 const mTrack=new THREE.MeshBasicMaterial({color:0x2b2118}),mFeed=new THREE.MeshLambertMaterial({color:0x5a4a2a});
-function spawnSign(p,force){const sp=spawnW();if(!area.spawn)return;const k=pick(sp),r0=Math.random(),type=force?(r0<.5?'track':'feed'):r0<.45?'track':r0<.8?'feed':'sound',fresh=Math.random()<DATA.signs.fresh,an=Math.random()*6.28,r=type==='sound'?30+Math.random()*10:12+Math.random()*16,x=cl(p.x+Math.cos(an)*r),z=cl(p.z+Math.sin(an)*r);
+function spawnSign(p,force){const sp=spawnW();if(!area.spawn)return;const k=pick(sp),r0=Math.random(),type=force?(r0<.5?'track':'feed'):r0<.45?'track':r0<.8?'feed':'sound',fresh=Math.random()<DATA.signs.fresh,an=Math.random()*6.28,r=type==='sound'?30+Math.random()*10:12+Math.random()*16,qq=snapOk(cl(p.x+Math.cos(an)*r),cl(p.z+Math.sin(an)*r)),x=qq[0],z=qq[1];
  let ref=null;if(fresh){const o=type==='sound'?0:10+Math.random()*10,aa=Math.random()*6.28;ref=mkAnimal(k,x+Math.cos(aa)*o,z+Math.sin(aa)*o)}
  if(type==='sound'){pulses.push({x,z,t:0});if(ref)ref.hint=25;toast('【物音】'+dirText(x-p.x,z-p.z)+'でガサガサ…'+(fresh?'':'（気のせいかもしれない）'));return}
- const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=Math.random()*6.28;
+ const g=new THREE.Group();g.position.set(x,TER.h(x,z),z);g.rotation.y=Math.random()*6.28;
  if(type==='track')for(let i=0;i<4;i++){const c=new THREE.Mesh(new THREE.CircleGeometry(.14,8),mTrack);c.rotation.x=-Math.PI/2;c.position.set((i%2?.18:-.18),.03,i*.55);g.add(c)}
  else{const s=new THREE.Mesh(new THREE.SphereGeometry(.3,6,4),mFeed);s.scale.y=.4;s.position.y=.1;g.add(s)}
  scene.add(g);if(SG.length>=6){const o=SG.shift();scene.remove(o.g);if(o.mk)scene.remove(o.mk)}SG.push({x,z,k,type,fresh,ref,g,noticed:false,done:false,mk:null,act:null})}
@@ -124,7 +117,7 @@ function inspect(s){if(s.done)return;s.done=true;const D=DATA.animals[s.k],w=s.t
 function field(dt,p){tickEnv(dt,p);updAnimals(dt,p);animTick(dt);for(const d of party())d.fatigue=Math.min(100,(d.fatigue||0)+dt/6);cd=Math.max(0,cd-dt);if(aiming){aimT+=dt;$('ret').style.transform='scale('+Math.min(2.6,.5+sway()*G().spread*30)+')'}
  DG.forEach((o,i)=>{const m=o.m.position,sd=i?-1.1:1.1,tx=p.x-Math.sin(yaw)*(1.8+i*.8)+Math.cos(yaw)*sd,tz=p.z-Math.cos(yaw)*(1.8+i*.8)-Math.sin(yaw)*sd,k=Math.min(1,dt*3),ox=m.x,oz=m.z;m.x+=(tx-m.x)*k;m.z+=(tz-m.z)*k;if(Math.hypot(m.x-ox,m.z-oz)>.002)o.m.rotation.y=Math.atan2(m.x-ox,m.z-oz)});
  signT-=dt*(1+dogSum('track')*DATA.dog.trackK)*envSign();if(signT<=0){spawnSign(p);const f=DATA.signs.next;signT=f[0]+Math.random()*(f[1]-f[0])}
- for(const s of SG)if(!s.noticed&&Math.hypot(p.x-s.x,p.z-s.z)<9){s.noticed=true;s.mk=label('？痕跡');s.mk.scale.set(2.4,.6,1);s.mk.position.set(s.x,1.6,s.z);scene.add(s.mk);toast('何かの痕跡を見つけた')}
+ for(const s of SG)if(!s.noticed&&Math.hypot(p.x-s.x,p.z-s.z)<9){s.noticed=true;s.mk=label('？痕跡');s.mk.scale.set(2.4,.6,1);s.mk.position.set(s.x,TER.h(s.x,s.z)+1.6,s.z);scene.add(s.mk);toast('何かの痕跡を見つけた')}
  for(let i=pulses.length-1;i>=0;i--){pulses[i].t+=dt;if(pulses[i].t>3)pulses.splice(i,1)}}
 function drawMini(p){const c=Math.cos(yaw),s=Math.sin(yaw);mc.setTransform(1,0,0,1,0,0);mc.clearRect(0,0,96,96);mc.fillStyle='#1d2a22';mc.fillRect(0,0,96,96);
  mc.setTransform(-c,-s,s,-c,48,48);const H=area.half;mc.fillStyle='#3f7a46';mc.fillRect(-H-p.x,-H-p.z,2*H,2*H);
@@ -135,7 +128,6 @@ function drawMini(p){const c=Math.cos(yaw),s=Math.sin(yaw);mc.setTransform(1,0,0
 /* ===== 狩猟：構え・照準・射撃・捕獲（Phase 3） ===== */
 let aiming=false,aimT=0,cd=0,rtm;const G=()=>DATA.guns[S.gun];
 function sway(){const g=G();return(1.3-g.stab)*(aimT<1.5?2.5-aimT:1)*(moving?1.8:1)*(1-Math.min(.35,dogSum('coop')*DATA.dog.coopK))}
-function occTrunk(ax,az,bx,bz){const vx=bx-ax,vz=bz-az,L=vx*vx+vz*vz||1;for(const q of trees){const t=((q[0]-ax)*vx+(q[1]-az)*vz)/L;if(t<.02||t>.98)continue;if(Math.hypot(ax+vx*t-q[0],az+vz*t-q[1])<(q[2]||.3)+.15)return true}return false}
 function capture(a){const D=a.D,rare=!!a.rare,sz=+(a.sz*(rare?1.15:1)).toFixed(1),e=S.dex[a.k]||(S.dex[a.k]={seen:0,caught:0,max:0}),first=e.caught===0,rec=sz>e.max;e.caught++;if(first)e.fc=Date.now();if(rec)e.max=sz;
  const r={id:'r'+Date.now().toString(36)+Math.floor(Math.random()*1e4),k:a.k,size:sz,area:aid,t:Date.now(),method:a.trap?'trap':'gun',gun:a.trap||S.gun,rare};S.records.push(r);S.bag.push(r.id);
  if(a.g){scene.remove(a.g);AN.splice(AN.indexOf(a),1)}addExp(Math.round(DATA.exp.catchBase*(1+D.catch)));mEvt('catch',a.k,{rare:!!a.rare});popHit(aid,a.k);if(!a.trap)dogGain('coop',8);save();return{r,D,first,rec}}
@@ -143,12 +135,12 @@ function fire(){if(!aiming||paused||cd>0)return;const g=G();if((S.ammo[S.gun]||0
  S.ammo[S.gun]--;cd=g.reload;dogGain('coop',1);updInfo();shotFx(g);cam.updateMatrixWorld();
  const O=cam.position.clone(),V=new THREE.Vector3();cam.getWorldDirection(V);
  const rt=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0),up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1),p=player.position;
- const C=a=>new THREE.Vector3(a.g.position.x,a.D.body[1]/2+.2,a.g.position.z);
- let refD=25,best=1e9;for(const a of AN){const w=C(a).sub(O),t=w.dot(V);if(t>0&&t<best&&w.sub(V.clone().multiplyScalar(t)).length()<2.5){best=t;refD=t}}
+ const C=a=>new THREE.Vector3(a.g.position.x,a.g.position.y+a.D.body[1]/2+.2,a.g.position.z);
+ let refD=25,best=1e9;for(const a of AN){if(a.g.visible===false)continue;const w=C(a).sub(O),t=w.dot(V);if(t>0&&t<best&&w.sub(V.clone().multiplyScalar(t)).length()<2.5){best=t;refD=t}}
  const df=refD<g.range[0]?1+(g.range[0]-refD)/g.range[0]*.3:refD<=g.range[1]?1:refD<=g.range[2]?1+(refD-g.range[1])/g.range[1]:3;
  const sp=g.spread*sway()*df,hits=new Map(),n=g.pellets||1;let crit=false;
  for(let i=0;i<n;i++){const r=sp*Math.sqrt(Math.random()),an=Math.random()*6.283,dir=V.clone().addScaledVector(rt,r*Math.cos(an)).addScaledVector(up,r*Math.sin(an)).normalize();let ha=null,ht=1e9,hp=0;
-  for(const a of AN){const w=C(a).sub(O),t=w.dot(dir);if(t<2||t>g.range[2]*1.3||t>=ht)continue;const pd=w.sub(dir.clone().multiplyScalar(t)).length(),rad=Math.max(...a.D.body)*.5+.12;if(pd<rad&&!occTrunk(p.x,p.z,a.g.position.x,a.g.position.z)){ha=a;ht=t;hp=pd/rad}}
+  for(const a of AN){if(a.g.visible===false)continue;const w=C(a).sub(O),t=w.dot(dir);if(t<2||t>g.range[2]*1.3||t>=ht)continue;const pd=w.sub(dir.clone().multiplyScalar(t)).length(),rad=Math.max(...a.D.body)*.5+.12;if(pd<rad&&!occTrunk(p.x,p.z,a.g.position.x,a.g.position.z)&&TER.los(O.x,O.y,O.z,a.g.position.x,a.g.position.y+a.D.body[1]*.6,a.g.position.z)){ha=a;ht=t;hp=pd/rad}}
   if(ha){hits.set(ha,(hits.get(ha)||0)+1);if(!g.pellets&&hp<.35)crit=true}}
  let fled=0;for(const a of AN)if(!hits.has(a)){const d=Math.hypot(a.g.position.x-p.x,a.g.position.z-p.z);if(d<g.noise&&(a.st==='normal'||a.st==='alert')){a.st='prep';a.t=.2+Math.random()*.4;if(a.seen)fled++}}
  const caught=[];let wounded=0,weak=false;
@@ -210,11 +202,11 @@ function act2(a,d){const id=d.id;
 /* ===== 図鑑・犬・エリア解放・境界（Phase 5） ===== */
 const DG=[],BL=[];let dexTab='sp',wt=0;
 const mBlood=new THREE.MeshBasicMaterial({color:0x7a1515});
-function blood(x,z){const c=new THREE.Mesh(new THREE.CircleGeometry(.12+Math.random()*.1,7),mBlood);c.rotation.x=-Math.PI/2;c.position.set(x+(Math.random()-.5)*.4,.04,z+(Math.random()-.5)*.4);scene.add(c);BL.push(c);if(BL.length>70)scene.remove(BL.shift())}
+function blood(x,z){const c=new THREE.Mesh(new THREE.CircleGeometry(.12+Math.random()*.1,7),mBlood);c.rotation.x=-Math.PI/2;c.position.set(x+(Math.random()-.5)*.4,TER.h(x,z)+.05,z+(Math.random()-.5)*.4);scene.add(c);BL.push(c);if(BL.length>70)scene.remove(BL.shift())}
 function belt(h){const pts=[],j=()=>(Math.random()-.5)*.6;
  for(const off of[.7,2.3])for(let t=-h;t<=h;t+=1.8){const e=h-off;pts.push([t+j(),-e+j()],[t+j(),e+j()],[-e+j(),t+j()],[e+j(),t+j()])}
  const n=pts.length,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.25,2,6),new THREE.MeshLambertMaterial({color:0x5a3f25}),n),cr=new THREE.InstancedMesh(new THREE.ConeGeometry(1.5,3.4,7),new THREE.MeshLambertMaterial({color:0x2a5f31}),n),m=new THREE.Matrix4();
- pts.forEach((q,i)=>{const s=.9+Math.random()*.6;trees.push(q);m.makeScale(s,s,s).setPosition(q[0],s,q[1]);tr.setMatrixAt(i,m);m.makeScale(s,s,s).setPosition(q[0],2+s*1.2,q[1]);cr.setMatrixAt(i,m)});scene.add(tr,cr)}
+ pts.forEach((q,i)=>{const s=.9+Math.random()*.6;TG.add(q);trees.push(q);const gy=TER.h(q[0],q[1]);m.makeScale(s,s,s).setPosition(q[0],gy+s,q[1]);tr.setMatrixAt(i,m);m.makeScale(s,s,s).setPosition(q[0],gy+2+s*1.2,q[1]);cr.setMatrixAt(i,m)});scene.add(tr,cr)}
 function mkDog(id,name,ab){return{id,name,lv:1,exp:0,fatigue:0,ab:Object.assign({find:.4,track:.3,coop:.2},ab),act:{find:0,track:0,coop:0}}}
 const party=()=>S.party.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean),eff=d=>1-Math.min(100,d.fatigue||0)/200,dogSum=k=>party().reduce((s,d)=>s+d.ab[k]*eff(d),0),partyMax=()=>S.rank>=DATA.dog.partyRank?2:1,dogNeed=lv=>20+lv*15;
 function dogExp(d,xp){if(d.lv>=DATA.dog.maxLv)return;d.exp+=xp;while(d.lv<DATA.dog.maxLv&&d.exp>=dogNeed(d.lv)){d.exp-=dogNeed(d.lv);d.lv++;let top='find';for(const k of['track','coop'])if(d.act[k]>d.act[top])top=k;for(const k in d.ab)d.ab[k]=Math.min(1.5,d.ab[k]+(k===top?.06:.02));toast(`${d.name}がLv${d.lv}にレベルアップ！`)}}
@@ -244,20 +236,20 @@ function schedTraps(){clearTimeout(ttmr);const now=Date.now();let next=Infinity;
  for(const t of S.traps){if(t.st!=='set')continue;const end=t.at+DATA.trap.life;for(let n=t.n+1;;n++){const ct=t.at+n*DATA.trap.interval;if(ct>end)break;if(trapRoll(t,n)){next=Math.min(next,ct);break}}next=Math.min(next,end);if(!t.warned&&end-DATA.trap.warn>now)next=Math.min(next,end-DATA.trap.warn)}
  if(next<Infinity)ttmr=setTimeout(procTraps,Math.min(2147483000,Math.max(1000,next-now+500)))}
 function procTraps(){rollMissions();const ev=stepTraps(Date.now());if(ev.length){save();report(ev)}syncTM();schedTraps();if(ev.length&&cur===trapPanel&&$('panel').style.display==='block')trapPanel()}
-function trapMesh(t){const g=new THREE.Group();g.position.set(t.x,0,t.z);const caught=t.st==='caught';
+function trapMesh(t){const g=new THREE.Group();g.position.set(t.x,TER.h(t.x,t.z),t.z);const caught=t.st==='caught';
  if(t.type==='box'){const b=new THREE.Mesh(new THREE.BoxGeometry(1.3,.8,.8),new THREE.MeshLambertMaterial({color:caught?0x9a5a4a:0x7a7a70}));b.position.y=.4;const l=new THREE.Mesh(new THREE.BoxGeometry(1.34,.12,.84),new THREE.MeshLambertMaterial({color:0x4a4a44}));l.position.y=.82;g.add(b,l)}
  else{const r=new THREE.Mesh(new THREE.RingGeometry(.25,.4,12),new THREE.MeshBasicMaterial({color:0x8a6a3a,side:THREE.DoubleSide}));r.rotation.x=-Math.PI/2;r.position.y=.05;const s=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.7,5),new THREE.MeshLambertMaterial({color:0x5a3f25}));s.position.set(.45,.35,0);g.add(r,s);
   if(caught){const m=new THREE.Mesh(new THREE.BoxGeometry(.6,.4,.9),new THREE.MeshLambertMaterial({color:0x2a2420}));m.position.set(0,.25,0);g.add(m)}}
  scene.add(g);return g}
 function syncTM(){if(!scene||!area.spawn)return;for(const id in TM){const t=S.traps.find(x=>x.id===id);if(!t||TM[id].st!==t.st){scene.remove(TM[id].g);delete TM[id]}}
- for(const t of S.traps)if(t.area===aid&&!TM[t.id])TM[t.id]={g:trapMesh(t),st:t.st}}
+ for(const t of S.traps)if(t.area===aid&&!TM[t.id]){fixTrapPos(t);TM[t.id]={g:trapMesh(t),st:t.st}}}
 function drawTrapsMini(p){for(const t of S.traps){if(t.area!==aid)continue;mc.fillStyle=(t.st==='caught'&&t.type==='snare')?'#ff4a4a':'#d9a441';mc.fillRect(t.x-p.x-2,t.z-p.z-2,4,4)}}
 function trapNear(p){let best=null,bd=3.2;for(const t of S.traps){if(t.area!==aid)continue;const d=Math.hypot(p.x-t.x,p.z-t.z);if(d<bd){bd=d;best=t}}if(!best)return null;
  const nm=best.st==='set'?'罠を撤去する':best.type==='snare'&&!best.chk?'くくり罠を確認する':'罠を回収する',o=TA[best.id];return(o&&o.name===nm)?o:(TA[best.id]={trapId:best.id,name:nm,id:'trap'})}
 function placeTrap(type){if(aid==='base'||!S.trapInv[type]){toast('設置できません');return}
  if(S.traps.length>=trapLimit()){toast('設置上限です（'+trapLimit()+'個）');return}
  const p=player.position,r=player.rotation.y;let x=p.x+Math.sin(r)*1.6,z=p.z+Math.cos(r)*1.6;if(blocked(x,z)){x=p.x;z=p.z}
- if(blocked(x,z)||Math.abs(x)>area.half-3||Math.abs(z)>area.half-3){toast('ここには設置できません');return}
+ if(blocked(x,z)||!TER.walkable(x,z)||TER.isWater(x,z)||Math.abs(x)>area.half-3||Math.abs(z)>area.half-3){toast('ここには設置できません（水辺・急斜面・障害物の近く）');return}
  if(S.traps.some(t=>t.area===aid&&Math.hypot(t.x-x,t.z-z)<DATA.trap.minDist)){toast('他の罠に近すぎます');return}
  S.traps.push({id:'t'+Date.now().toString(36)+Math.floor(Math.random()*1e4),type,area:aid,x,z,at:Date.now(),n:0,seed:(Math.random()*2147483647)|0,st:'set',chk:false,warned:false});
  S.trapInv[type]--;syncTM();schedTraps();save();closePanel();cur=null;toast(DATA.traps[type].name+'を設置した。アプリを閉じても時間は進む')}
@@ -285,7 +277,7 @@ function ip(tab,h,isCol){for(let i=1;i<tab.length;i++)if(h<=tab[i][0]){const a=t
 function applyEnv(){if(!env||!scene)return;const h=hourOf(),w=env.weather,col=ip(SKY,h,true);if(w!=='clear')col.lerp(new THREE.Color(0x7a828c),w==='rain'?.55:.3);
  const dim=ip(DIM,h,false)*(w==='rain'?.75:w==='cloudy'?.9:1);scene.background=col;scene.fog.color.copy(col);scene.fog.near=w==='rain'?8:25;scene.fog.far=(w==='rain'?55:90)*(env.period==='night'?.75:1);if(HL)HL.intensity=.95*dim;if(SUN)SUN.intensity=.6*dim;setRain(w==='rain')}
 function setRain(on){if(on&&!RAIN){const n=260,pos=new Float32Array(n*6);for(let i=0;i<n;i++){const x=(Math.random()-.5)*30,y=Math.random()*14,z=(Math.random()-.5)*30;pos.set([x,y,z,x,y-.6,z],i*6)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));RAIN=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xaabbcc,transparent:true,opacity:.5}));RAIN.frustumCulled=false;scene.add(RAIN)}if(RAIN)RAIN.visible=on}
-function tickRain(dt,p){if(!RAIN||!RAIN.visible)return;RAIN.position.set(p.x,0,p.z);const a=RAIN.geometry.attributes.position.array;for(let i=0;i<a.length;i+=6){a[i+1]-=18*dt;a[i+4]-=18*dt;if(a[i+4]<0){a[i+1]=14;a[i+4]=13.4}}RAIN.geometry.attributes.position.needsUpdate=true}
+function tickRain(dt,p){if(!RAIN||!RAIN.visible)return;RAIN.position.set(p.x,p.y,p.z);const a=RAIN.geometry.attributes.position.array;for(let i=0;i<a.length;i+=6){a[i+1]-=18*dt;a[i+4]-=18*dt;if(a[i+4]<0){a[i+1]=14;a[i+4]=13.4}}RAIN.geometry.attributes.position.needsUpdate=true}
 function tickEnv(dt,p){if(!env)return;env.min+=dt*DATA.time.minPerSec;const np=periodOf(hourOf());if(np!==env.period){env.period=np;toast(({morning:'朝になった',day:'日が高くなった',evening:'日が傾いてきた',night:'夜になった。視界が悪い'})[np])}
  wxT-=dt;if(wxT<=0){wxT=rnd2(DATA.time.wxEvery);if(Math.random()<.5){const nw=wpick(area.weather||{clear:1});if(nw!==env.weather){env.weather=nw;toast(nw==='rain'?'雨が降り出した':nw==='clear'?'空が晴れてきた':'雲が出てきた')}}}
  envAcc+=dt;if(envAcc>.5){envAcc=0;applyEnv()}tickRain(dt,p);evT-=dt;if(evT<=0&&!aiming){evT=rnd2(DATA.time.evEvery);fireEvent(p)}}
@@ -318,11 +310,57 @@ function rollMissions(){const dk=dkey(new Date()),wk=wkey();let ch=false;
  for(const id in want)if(!S.gen[id]){S.gen[id]=want[id];ch=true}
  const live=new Set(Object.keys(want).concat(S.missions.active.map(a=>a.id)));for(const id of Object.keys(S.gen))if(!live.has(id)){delete S.gen[id];delete S.missions.done[id];ch=true}
  if(ch){updMis();save()}}
+
+/* ===== 地形・植生・障害物（Phase C） ===== */
+const addCol=(x,z,r,kind)=>{const q=[x,z,r,kind];trees.push(q);TG.add(q);return q};
+const blocked=(x,z)=>TG.near(x,z,3.5,q=>Math.hypot(x-q[0],z-q[1])<(q[2]||.7)+.4);
+const snapOk=(x,z)=>Terrain.nearestOk(TER,x,z,12,(a,b)=>!blocked(a,b))||[x,z];
+/* 視線を遮る障害物：木は2本以上、岩・建物(半径1超)は1つで遮る */
+function occ(ax,az,bx,bz){let n=0;const vx=bx-ax,vz=bz-az,L=vx*vx+vz*vz||1;
+ TG.near((ax+bx)/2,(az+bz)/2,Math.sqrt(L)/2+3,q=>{const t=((q[0]-ax)*vx+(q[1]-az)*vz)/L;if(t<.05||t>.95)return false;const big=(q[2]||.7)>1;if(Math.hypot(ax+vx*t-q[0],az+vz*t-q[1])<(big?q[2]:.9)){n+=big?2:1;if(n>=2)return true}return false});return n>=2}
+function occTrunk(ax,az,bx,bz){const vx=bx-ax,vz=bz-az,L=vx*vx+vz*vz||1;
+ return TG.near((ax+bx)/2,(az+bz)/2,Math.sqrt(L)/2+3,q=>{const t=((q[0]-ax)*vx+(q[1]-az)*vz)/L;if(t<.02||t>.98)return false;return Math.hypot(ax+vx*t-q[0],az+vz*t-q[1])<(q[2]||.3)+.15})}
+/* セーブ済みの罠が新しい地形で水・急斜面・障害物に重なる場合、最も近い使える場所へ移す */
+function fixTrapPos(t){if(t.area!==aid||!area.spawn)return;if(TER.walkable(t.x,t.z)&&!TER.isWater(t.x,t.z)&&!blocked(t.x,t.z))return;
+ const q=Terrain.nearestOk(TER,t.x,t.z,30,(a,b)=>!blocked(a,b));if(q){t.x=q[0];t.z=q[1];save();toast('設置済みの罠の位置を地形に合わせて調整しました')}}
+/* 地面：高さと区域・斜面に応じた色の格子メッシュ＋小川の水面。拠点は従来どおり平面 */
+function buildGround(A,id){
+ const far=new THREE.Mesh(new THREE.PlaneGeometry(A.half*2+240,A.half*2+240),new THREE.MeshLambertMaterial({color:A.ground}));far.rotation.x=-Math.PI/2;far.position.y=(id==='base'||TER.flat)?0:-1.5;scene.add(far);
+ if(id==='base'||TER.flat)return;
+ const ext=A.half+26,st=1.5,n=Math.floor(ext*2/st)+1,pos=new Float32Array(n*n*3),col=new Float32Array(n*n*3),idx=new Uint16Array((n-1)*(n-1)*6);
+ for(let i=0;i<n;i++)for(let j=0;j<n;j++){const x=-ext+i*st,z=-ext+j*st,k=(i*n+j)*3,c=TER.colorAt(x,z);pos[k]=x;pos[k+1]=TER.h(x,z);pos[k+2]=z;col[k]=c[0];col[k+1]=c[1];col[k+2]=c[2]}
+ let q=0;for(let i=0;i<n-1;i++)for(let j=0;j<n-1;j++){const a=i*n+j,b=a+1,c=a+n,d=c+1;idx[q++]=a;idx[q++]=b;idx[q++]=c;idx[q++]=b;idx[q++]=d;idx[q++]=c}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.setIndex(new THREE.BufferAttribute(idx,1));g.computeVertexNormals();
+ scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true})));
+ for(const sr of TER.streams){const pts=sr.pts,W=sr.w*1.15,v=[],ix=[];let k=0;
+  for(let i=0;i<pts.length;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz)||1,nx=-dz/L*W,nz=dx/L*W,y=TER.waterY(pts[i][0],pts[i][1],sr);
+   v.push(pts[i][0]+nx,y,pts[i][1]+nz,pts[i][0]-nx,y,pts[i][1]-nz);if(i<pts.length-1){ix.push(k,k+2,k+1,k+1,k+2,k+3)}k+=2}
+  const wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v),3));wg.setIndex(new THREE.BufferAttribute(new Uint16Array(ix),1));wg.computeVertexNormals();
+  scene.add(new THREE.Mesh(wg,new THREE.MeshLambertMaterial({color:0x3f7f9f,transparent:true,opacity:.78,side:THREE.DoubleSide})))}}
+/* 樹木：区域ごとの密度で配置(雑木林は密・林道は無し)。同じエリアは毎回同じ配置 */
+function plantTrees(A,id){const rnd=rng(((DATA.terrain[id]||{}).seed||(id==='base'?7:id.length))*977+13),pts=[];
+ if(id==='base'){for(let i=0;i<A.trees;i++){let x,z;do{x=(rnd()*2-1)*A.half;z=(rnd()*2-1)*A.half}while(Math.abs(x)<17&&Math.abs(z)<16);pts.push([x,z,.8+rnd()*.7])}}
+ else{let tries=0;while(pts.length<A.trees&&tries++<A.trees*80){const x=(rnd()*2-1)*(A.half-2),z=(rnd()*2-1)*(A.half-2);if(Math.hypot(x,z)<5||!TER.walkable(x,z)||TER.isWater(x,z))continue;const zn=TER.zoneAt(x,z);if(rnd()>(DATA.zoneTrees[zn]||0))continue;pts.push([x,z,(zn==='wood'?1:.85)*(.8+rnd()*.7)])}}
+ const n=pts.length;if(!n)return;
+ const tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.25,2,6),new THREE.MeshLambertMaterial({color:0x6b4a2b}),n),cr=new THREE.InstancedMesh(new THREE.ConeGeometry(1.4,3.2,7),new THREE.MeshLambertMaterial({color:0xffffff}),n),m=new THREE.Matrix4(),c=new THREE.Color();
+ pts.forEach((q,i)=>{const[x,z,s]=q,gy=TER.h(x,z);addCol(x,z,.7,'tree');m.makeScale(s,s,s).setPosition(x,gy+s,z);tr.setMatrixAt(i,m);m.makeScale(s,s,s).setPosition(x,gy+2+s*1.2,z);cr.setMatrixAt(i,m);c.setHSL(.28+rnd()*.07,.42+rnd()*.12,.17+rnd()*.1);cr.setColorAt(i,c)});
+ scene.add(tr,cr)}
+/* 岩：小川沿い・斜面に多く置く。視線を遮り、遮蔽物になる */
+function plantRocks(A,id){const N=(DATA.terrain[id]||{}).rocks||0;if(!N)return;const rnd=rng(((DATA.terrain[id]||{}).seed||1)*131+7),pts=[];
+ for(let i=0;i<N;i++){const sp=Terrain.pickSpot(TER,rnd,A.half,{tries:80,test:(x,z)=>Math.hypot(x,z)>8&&rnd()<(TER.zoneAt(x,z)==='stream'?.9:TER.slope(x,z)>.3?.8:.25)});if(sp)pts.push([sp[0],sp[1],.9+rnd()*1.1,rnd()*6.28])}
+ if(!pts.length)return;const rk=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),new THREE.MeshLambertMaterial({color:0x8a877c}),pts.length),o=new THREE.Object3D();
+ pts.forEach((q,i)=>{const[x,z,s,ry]=q;o.position.set(x,TER.h(x,z)+.3*s,z);o.scale.set(s*1.15,s*.75,s);o.rotation.y=ry;o.updateMatrix();rk.setMatrixAt(i,o.matrix);addCol(x,z,Math.max(.85,s*.9),'rock')});scene.add(rk)}
+
 /* ===== モデルのアニメーション：実際の移動速度と行動状態に連動 ===== */
 function spdOf(o,x,z,dt){const v=o._px===undefined?0:Math.hypot(x-o._px,z-o._pz)/(dt>0?dt:1/60);o._px=x;o._pz=z;return v}
-function animTick(dt){
- for(const a of AN){if(!a.ac)continue;const sp=spdOf(a,a.g.position.x,a.g.position.z,dt),hint=(a.st==='alert'||a.st==='prep')?'alert':(a.st==='flee'?'flee':null);a.ac.update(dt,Math.min(sp,12),hint)}
- for(const o of DG){if(!o.actor)continue;o.actor.update(dt,Math.min(spdOf(o,o.m.position.x,o.m.position.z,dt),10),null)}}
+/* 距離に応じた負荷軽減：近い=毎フレーム / 40m超=4フレームに1回 / 85m超(霧で見えない)=描画も更新も省略 */
+function lodFor(d){return d>85?{vis:false,every:0}:d>40?{vis:true,every:4}:{vis:true,every:1}}
+function animTick(dt){const pp=player.position;
+ for(const a of AN){if(!a.ac)continue;const L=lodFor(Math.hypot(a.g.position.x-pp.x,a.g.position.z-pp.z));a.g.visible=L.vis;
+  if(!L.vis){a._px=undefined;a._acc=0;continue}
+  a._acc=(a._acc||0)+dt;if(L.every>1&&((a._f=(a._f||0)+1)%L.every))continue;const ddt=a._acc;a._acc=0;
+  const sp=spdOf(a,a.g.position.x,a.g.position.z,ddt),hint=(a.st==='alert'||a.st==='prep')?'alert':(a.st==='flee'?'flee':null);a.ac.update(ddt,Math.min(sp,12),hint)}
+ for(const o of DG){if(!o.actor)continue;o.m.position.y=TER.h(o.m.position.x,o.m.position.z);o.actor.update(dt,Math.min(spdOf(o,o.m.position.x,o.m.position.z,dt),10),null)}}
 function playerAnim(dt){if(!PA)return;PA.update(dt,Math.min(spdOf(PA,player.position.x,player.position.z,dt),8),aiming?'aim':null)}
 /* ===== メインループ ===== */
 const mc=$('mc').getContext('2d');let last=0,fr=0;
@@ -330,13 +368,15 @@ function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000||0,
  if(!paused){let sx=st.x,sy=st.y;if(keys.KeyA)sx-=1;if(keys.KeyD)sx+=1;if(keys.KeyW)sy-=1;if(keys.KeyS)sy+=1;
   const m=Math.min(1,Math.hypot(sx,sy));moving=m>.08;if(m>.08){const sp=(aiming?DATA.player.sneak*.6:sneak?DATA.player.sneak:DATA.player.walk)*m*gm('speed'),a=Math.atan2(sx,sy);
    const dx=-Math.sin(yaw)*sy-Math.cos(yaw)*sx,dz=-Math.cos(yaw)*sy+Math.sin(yaw)*sx;const l=Math.hypot(dx,dz)||1;
-   let nx=player.position.x+dx/l*sp*dt,nz=player.position.z+dz/l*sp*dt;const H=area.half-.6;nx=Math.max(-H,Math.min(H,nx));nz=Math.max(-H,Math.min(H,nz));
-   let hit=false;for(const q of trees){if(Math.hypot(nx-q[0],nz-q[1])<(q[2]||.7)+DATA.player.radius){hit=true;break}}
+   const spm=TER.speedMul(player.position.x,player.position.z,dx/l,dz/l);let nx=player.position.x+dx/l*sp*spm*dt,nz=player.position.z+dz/l*sp*spm*dt;const H=area.half-.6;nx=Math.max(-H,Math.min(H,nx));nz=Math.max(-H,Math.min(H,nz));
+   const free=(x,z)=>TER.walkable(x,z)&&!TG.near(x,z,3.5,q=>Math.hypot(x-q[0],z-q[1])<(q[2]||.7)+DATA.player.radius);let hit=!free(nx,nz);
+   if(hit){if(free(nx,player.position.z)){nz=player.position.z;hit=false}else if(free(player.position.x,nz)){nx=player.position.x;hit=false}}
    if(!hit){player.position.x=nx;player.position.z=nz}else if(Math.max(Math.abs(nx),Math.abs(nz))>area.half-6&&t>wt){wt=t+4000;toast('木々が深く茂っていて、これ以上は進めない')}faceY=Math.atan2(dx,dz)}
-  if(aiming)faceY=yaw;let d=faceY-player.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));player.rotation.y+=d*Math.min(1,dt*12)}playerAnim(dt);
+  if(aiming)faceY=yaw;let d=faceY-player.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));player.rotation.y+=d*Math.min(1,dt*12)}player.position.y+=(TER.h(player.position.x,player.position.z)-player.position.y)*Math.min(1,dt*20);playerAnim(dt);
  const p=player.position,D=6.5;cam.fov+=((aiming?G().zoom:60)-cam.fov)*Math.min(1,dt*10);cam.updateProjectionMatrix();
  if(aiming){kick=Math.max(0,kick-dt*.6);const A=pitch-.35-kick,ex=p.x-Math.sin(yaw)*1.6-Math.cos(yaw)*.5,ez=p.z-Math.cos(yaw)*1.6+Math.sin(yaw)*.5,ey=p.y+1.7;cam.position.set(ex,ey,ez);cam.lookAt(ex+Math.sin(yaw)*Math.cos(A)*50,ey-Math.sin(A)*50,ez+Math.cos(yaw)*Math.cos(A)*50)}
  else{cam.position.set(p.x-Math.sin(yaw)*Math.cos(pitch)*D,p.y+1.6+Math.sin(pitch)*D,p.z-Math.cos(yaw)*Math.cos(pitch)*D);cam.lookAt(p.x,p.y+1.3,p.z)}
+ {const gy=TER.h(cam.position.x,cam.position.z)+.55;if(cam.position.y<gy)cam.position.y=gy}
  let best=null;if(aid==='base'){restDogs(dt);let bd=4.6;for(const f of DATA.facilities){const d=Math.hypot(p.x-f.x,p.z-f.z);if(d<bd){bd=d;best=f}}}else if(!paused){field(dt,p);best=signNear(p)}
  if(best!==near){near=best;const a=$('act');a.style.display=near?'flex':'none';if(near)a.textContent=near.sign?'痕跡を調べる':near.id==='gate'?'出発する':near.name}
  R.render(scene,cam);

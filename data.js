@@ -102,6 +102,25 @@ const DATA={
   fox:{rig:'quad',src:'assets/models/fox.glb',gait:{walkAmp:.5,runAmp:1.0,stride:1.1},look:{col:0xc8702a,belly:0xf2e8da,leg:.5,neck:.2,headS:.95,snout:.3,earLen:.16,earW:.05,tail:.38,tailW:.09,tailTip:0xf5efe5,legCol:0x2a1c14,earCol:0x2a1c14}},
   bear:{rig:'quad',src:'assets/models/bear.glb',gait:{walkAmp:.35,runAmp:.7,stride:.8,bob:.03},look:{col:0x1c1c1c,belly:0x2a2a2a,leg:.4,neck:.14,headS:1.2,snout:.2,earLen:.07,earW:.07,tail:.05,tailW:.04}}
  },
+ /* 地形：高低差・区域(林道/田畑/雑木林/小川)の設計。座標はエリア中心(0,0)からのメートル。同じ設定なら必ず同じ地形になります */
+ terrain:{
+  satoyama:{seed:11,amp:3.2,scale:34,edgeRise:7,woodThr:.52,maxSlope:.8,rocks:14,
+   path:{w:2.6,pts:[[-48,-28],[-30,-20],[-14,-8],[0,0],[16,10],[30,22],[48,30]]},
+   fields:[{x:30,z:-26,rx:17,rz:13}],
+   streams:[{w:2.4,depth:1.0,pts:[[-48,38],[-34,30],[-24,32],[-10,26],[6,28],[22,38],[36,44],[48,42]]}]},
+  forest:{seed:23,amp:4.4,scale:30,edgeRise:8,woodThr:.4,maxSlope:.8,rocks:20,
+   path:{w:2.4,pts:[[-56,4],[-34,10],[-14,-2],[0,0],[18,-12],[36,-18],[56,-8]]},
+   streams:[{w:2.6,depth:1.2,pts:[[-56,-40],[-40,-30],[-22,-38],[0,-34],[22,-40],[44,-34],[56,-40]]}]},
+  mountain:{seed:37,amp:15,scale:40,edgeRise:11,woodThr:.5,maxSlope:.85,rocks:30,
+   path:{w:2.2,pts:[[-62,-44],[-38,-24],[-16,-12],[0,0],[22,14],[42,32],[62,46]]},
+   fields:[{x:-30,z:30,rx:12,rz:10}],
+   streams:[{w:2.2,depth:1.4,pts:[[-62,20],[-44,16],[-28,8],[-20,-18],[-34,-36],[-52,-50]]}]},
+  deep:{seed:53,amp:18,scale:34,edgeRise:12,woodThr:.32,maxSlope:.85,rocks:36,
+   path:{w:1.8,pts:[[-68,-30],[-44,-14],[-20,-6],[0,0],[24,8],[46,26],[68,34]]},
+   streams:[{w:2.4,depth:1.5,pts:[[-68,40],[-46,30],[-24,38],[-4,30],[20,42],[44,36],[68,44]]},{w:1.8,depth:1.2,pts:[[10,-68],[14,-46],[8,-26],[16,-10]]}]}
+ },
+ zoneTrees:{wood:1,open:.22,field:.02,path:0,stream:.4},
+ animalZones:{deer:{open:1,field:.9,wood:.55,path:.35,stream:.3},boar:{wood:1,stream:.6,open:.3,field:.4,path:.15},tanuki:{wood:.9,field:.7,open:.5,stream:.5,path:.2},hare:{field:1,open:.8,wood:.2,path:.5,stream:.1},fox:{open:.9,wood:.7,field:.6,path:.4,stream:.3},bear:{wood:1,stream:.4,open:.15,field:.1,path:.05}},
  facilities:[
   {id:'mission',name:'ミッション掲示板',x:-10,z:-9,c:0xb5651d,phase:4},
   {id:'shop',name:'ショップ',x:10,z:-9,c:0x3d6fb5,phase:4},

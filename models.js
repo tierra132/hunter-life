@@ -56,7 +56,9 @@ const ModelKit=(()=>{
       if(m&&m.noTransparent&&mt.transparent){mt.transparent=false;mt.alphaTest=.5}}})}
 
   /* ---- 共通：色味の変更(珍しい個体など) ---- */
-  function tintAll(root,hex,amt){const c=new THREE.Color(hex);root.traverse(o=>{if(!o.isMesh)return;for(const mt of(Array.isArray(o.material)?o.material:[o.material])){if(mt&&mt.color&&mt.color.lerp&&!mt.userData?.keep)mt.color.lerp(c,amt)}})}
+  function tintAll(root,hex,amt){const c=new THREE.Color(hex);root.traverse(o=>{if(!o.isMesh||!o.material)return;
+    const one=mt=>{if(!mt||!mt.color||!mt.color.lerp)return mt;const n=mt.clone?mt.clone():mt;if(n.userData)n.userData=Object.assign({},n.userData,{shared:false});n.color.lerp(c,amt);return n};
+    o.material=Array.isArray(o.material)?o.material.map(one):one(o.material)})}
 
   /* ---- GLB アクター ---- */
   function glbActor(kind,c,m,opts){
@@ -80,10 +82,13 @@ const ModelKit=(()=>{
     A.setState('idle',0);return A}
 
   /* ---- 代替：関節で動くモデル（素材が無い・読み込めないときに自動で使う） ---- */
-  const M=col=>new THREE.MeshLambertMaterial({color:col});
-  const ell=(rx,ry,rz,col)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(1,12,10),M(col));o.scale.set(rx,ry,rz);return o};
-  const cyl=(r0,r1,h,col)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,h,8),M(col));o.position.y=-h/2;return o};
-  const cone=(r,h,col)=>{const o=new THREE.Mesh(new THREE.ConeGeometry(r,h,8),M(col));return o};
+  /* 形状と材質は共有して使い回す（体ごとに作らない）。色を変える個体は tintAll が材質を複製する */
+  const GC={},MC={},gcache=(k,mk)=>GC[k]||(GC[k]=mk());
+  const M=col=>MC[col]||(MC[col]=Object.assign(new THREE.MeshLambertMaterial({color:col}),{userData:{shared:true}}));
+  const f4=v=>Math.round(v*10000);
+  const ell=(rx,ry,rz,col)=>{const o=new THREE.Mesh(gcache('s',()=>new THREE.SphereGeometry(1,12,10)),M(col));o.scale.set(rx,ry,rz);return o};
+  const cyl=(r0,r1,h,col)=>{const o=new THREE.Mesh(gcache('c'+f4(r0)+'|'+f4(r1)+'|'+f4(h),()=>new THREE.CylinderGeometry(r1,r0,h,8)),M(col));o.position.y=-h/2;return o};
+  const cone=(r,h,col)=>new THREE.Mesh(gcache('n'+f4(r)+'|'+f4(h),()=>new THREE.ConeGeometry(r,h,8)),M(col));
   const grp=()=>new THREE.Group();
 
   function quadActor(kind,L,opts){
