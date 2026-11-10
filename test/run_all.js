@@ -1,7 +1,7 @@
 // 全テストの一括実行。1つでも失敗・異常終了・要約行なし・READMEの件数不一致があれば、終了コード1で失敗する
 const {spawnSync}=require('child_process');const fs=require('fs');
-const G=['data.js','models.js','ui.js','game.js'];
-const suites=[['regression',G],['traps',G],['smoke',G],['ui',G],['models',[]],['assets',[]],['text',[]],['layout',[]]];
+const G=['data.js','terrain.js','models.js','ui.js','game.js'];
+const suites=[['regression',G],['traps',G],['smoke',G],['ui',G],['terrain',G],['models',[]],['assets',[]],['text',[]],['layout',[]]];
 let bad=0,res={};
 for(const[name,args]of suites){
   const file='tests/'+(name==='layout'?'layout_check':name)+'.js';

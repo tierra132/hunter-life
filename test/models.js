@@ -7,13 +7,13 @@ class Obj{constructor(){this.position=new V3();this.rotation=new V3();this.scale
  clone(){if(this.userData.cloneThrows)throw new Error('clone失敗(テスト)');const c=new this.constructor();c._bbox=this._bbox;c.isMesh=this.isMesh;if(this.material)c.material=this.material;for(const k of this.children)c.add(k.clone(true));return c}}
 class Group extends Obj{}class Mesh extends Obj{constructor(g,m){super();this.geometry=g;this.material=m;this.isMesh=true}}
 class Color{constructor(h=0xffffff){this.hex=h;this.lerped=0}lerp(c,a){this.lerped+=a;return this}setHex(h){this.hex=h;return this}}
-class Lambert{constructor(o={}){this.color=new Color(o.color)}}
+class Lambert{constructor(o={}){this.color=new Color(o.color);this.userData={}}clone(){const c=new Lambert();c.color=new Color(this.color.hex);c.userData={};return c}}
 class Box3{setFromObject(o){const src=o._bbox?o:o.children[0],b=src._bbox;let s=1,p={x:0,y:0,z:0};if(o!==src){s=o.scale.x;p=o.position}
  this.min=new V3(b.min.x*s+p.x,b.min.y*s+p.y,b.min.z*s+p.z);this.max=new V3(b.max.x*s+p.x,b.max.y*s+p.y,b.max.z*s+p.z);return this}
  getSize(v){return v.set(this.max.x-this.min.x,this.max.y-this.min.y,this.max.z-this.min.z)}getCenter(v){return v.set((this.max.x+this.min.x)/2,(this.max.y+this.min.y)/2,(this.max.z+this.min.z)/2)}}
 class Act{constructor(c){this.clip=c;this.calls=[];this.ts=1}reset(){this.calls.push('reset')}setEffectiveWeight(){}fadeIn(){this.calls.push('fadeIn')}fadeOut(){this.calls.push('fadeOut')}play(){this.calls.push('play')}setEffectiveTimeScale(t){this.ts=t}}
 class Mixer{constructor(){this.updates=0;this.stopped=false}clipAction(c){return new Act(c)}update(){this.updates++}stopAllAction(){this.stopped=true}}
-const geo=()=>class{};
+global.__geo=0;const geo=()=>class{constructor(){global.__geo++}};
 global.__mode='ok';global.__gltf=null;
 class Loader{load(url,okf,prog,errf){const m=global.__mode;if(m==='throw')throw new Error('loader例外');if(m==='timeout')return;
  setTimeout(()=>{if(m==='error')errf(new Error('404'));else if(m==='noscene')okf({animations:[]});else okf(global.__gltf())},0)}}
@@ -93,5 +93,12 @@ ok('M6k 走行アニメが無いGLBは歩行アニメを速めて代用し、不
   ModelKit._reset();ModelKit._inject('deer',{fallback:false,gltf:mkGltf(['Idle'])(),clips:['Idle']});ModelKit._inject('fox',{fallback:true});
   const none=ModelKit.credits().length;DATA.models.deer.credit={title:'Deer',author:'作者A',license:'CC0',url:'https://example.com'};DATA.models.fox.credit={author:'B',license:'CC0',url:'u'};
   const c=ModelKit.credits();ok('M9 クレジットは「実際に使っている外部モデル」だけ表示される(未記入は出ない・代替表示は出ない)',none===0&&c.length===1&&c[0].author==='作者A');
+  // --- M10 負荷対策：形状・材質の共有、メッシュ数の予算、色変更の独立性
+  ModelKit._reset();ModelKit.create('deer',{length:1.6,seed:1});const g0=global.__geo;const ds=[];for(let i=0;i<10;i++)ds.push(ModelKit.create('deer',{length:1.6,seed:i}));
+  ok('M10a 同じ種類を10体増やしても、新しい形状(ジオメトリ)は作られない(共有)',global.__geo===g0,'増加='+(global.__geo-g0));
+  const cnt=r=>{let n=0;r.traverse(o=>{if(o.isMesh)n++});return n};let over=[];for(const k of Object.keys(DATA.models)){const a=ModelKit.create(k,{length:1,height:1.75});const lim=DATA.models[k].rig==='human'?30:40;if(cnt(a.root)>lim)over.push(k+':'+cnt(a.root))}
+  ok('M10b 1体あたりのメッシュ数が予算内(人型30以下・動物40以下)',over.length===0,over.join(','));
+  const r1=ModelKit.create('deer',{length:1.6,rare:true,tint:{color:0xffffff,amt:.5}}),r2=ModelKit.create('deer',{length:1.6});let l1=0,l2=0;r1.root.traverse(o=>{if(o.isMesh&&o.material.color.lerped)l1++});r2.root.traverse(o=>{if(o.isMesh&&o.material.color.lerped)l2++});
+  ok('M10c 珍しい個体の色変更は他の個体に影響しない',l1>0&&l2===0,'珍しい='+l1+' 通常='+l2);
   console.log(out.join('\n'));console.log('---',out.length,'項目 /',fails,'失敗 / 0 スキップ');process.exit(fails?1:0);
 })();

@@ -10,6 +10,7 @@ const body=`(function(){
  T('S5 日付が変わるとデイリー/ウィークリーが入れ替わる',()=>{const b=Object.keys(S.gen).join();__NOW+=40*3600e3;rollMissions();if(Object.keys(S.gen).join()===b)throw new Error('変化なし')});
  T('S6 同日に何度開いても内容は変わらない',()=>{const a=Object.keys(S.gen).join();rollMissions();rollMissions();if(Object.keys(S.gen).join()!==a)throw new Error('変動')});
  T('S7 操作説明は初回のみ(設定に記録)・感度設定が保存される',()=>{S.settings.help=0;helpPanel();act2('sens',{id:'1.4'});save();const L=load();if(L.settings.help!==1||L.settings.sens!==1.4)throw new Error(JSON.stringify(L.settings))});
+  T('S9 距離に応じた更新・描画の間引き(近い=毎フレーム/遠い=間引き/霧の外=省略)',()=>{const a=lodFor(10),b=lodFor(60),c=lodFor(100);if(!(a.vis&&a.every===1&&b.vis&&b.every===4&&!c.vis))throw new Error(JSON.stringify([a,b,c]))});
  T('S8 獲物を持ち帰ると売却画面が開く(まとめて処理)',()=>{go('satoyama');const c=capture({k:'deer',D:DATA.animals.deer,sz:80,rare:false,g:null});go('base');act2('sellAll',{});if(S.bag.length)throw new Error('残存')});
 })();`;
 load(process.argv.slice(2),body);console.log(out.join('\n'));console.log('---',out.length,'項目 /',fails,'失敗 / 0 スキップ');process.exit(fails?1:0);

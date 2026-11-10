@@ -8,12 +8,12 @@ const body=`
   const clue=[],ani=[];
   for(let run=0;run<RUNS;run++){
    S=validate(defSave());S.rank=10;S.unlocked=['satoyama','forest','mountain','deep'];go(id);
-   const p=player.position;p.x=0;p.z=0;toasts.length=0;pulses.length=0;
+   const p=player.position;p.x=0;p.z=0;p.y=TER.h(0,0);toasts.length=0;pulses.length=0;
    let tc=null,ta=null,t=0,turn=0;yaw=Math.random()*6.28;moving=true;sneak=false;
    while(t<LIMIT&&(tc===null||ta===null)){
     t+=DT;turn+=DT;yaw+=Math.sin(t*.9)*.9*DT;   // 歩きながら左右を見回す
     const nx=p.x+Math.sin(yaw)*3.2*DT,nz=p.z+Math.cos(yaw)*3.2*DT;
-    if(Math.abs(nx)<area.half-4&&Math.abs(nz)<area.half-4&&!blocked(nx,nz)){p.x=nx;p.z=nz}else yaw+=1.2;
+    if(Math.abs(nx)<area.half-4&&Math.abs(nz)<area.half-4&&!blocked(nx,nz)&&TER.walkable(nx,nz)){p.x=nx;p.z=nz;p.y=TER.h(nx,nz)}else yaw+=1.2;
     field(DT,p);
     if(tc===null&&(SG.some(s=>s.noticed)||pulses.length||toasts.some(m=>/物音|痕跡/.test(m))))tc=t;
     if(ta===null&&AN.some(a=>a.seen))ta=t;

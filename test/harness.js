@@ -17,7 +17,7 @@ function makeEl(id,any){
 }
 function load(files,extra){
   let js=files.map(f=>fs.readFileSync(f,'utf8')).join('\n');
-  const any=()=>new Proxy(function(){},{get:(t,k)=>k==='style'?{}:k==='position'||k==='rotation'||k==='scale'?(t['__'+k]=t['__'+k]||{x:0,y:0,z:0,set(){}}):k==='getContext'?()=>noopCtx:k==='dataset'?{}:k==='fov'?60:k==='geometry'?{attributes:{position:{array:new Float32Array(60),needsUpdate:false}}}:k==='attributes'?{position:{array:new Float32Array(60),needsUpdate:false}}:k==='children'?[]:k==='fog'?(t.__fog=t.__fog||{color:{copy(){}},near:0,far:0}):k==='intensity'?1:()=>any(),set:()=>true,construct:()=>any(),apply:()=>any()});
+  const any=()=>new Proxy(function(){},{get:(t,k)=>k==='style'?{}:k==='position'||k==='rotation'||k==='scale'?(t['__'+k]=t['__'+k]||{x:k==='scale'?1:0,y:k==='scale'?1:0,z:k==='scale'?1:0,set(x,y,z){this.x=x;this.y=y;this.z=z;return this},setScalar(s){this.x=this.y=this.z=s;return this},copy(o){this.x=o.x;this.y=o.y;this.z=o.z;return this}}):k==='getContext'?()=>noopCtx:k==='dataset'?{}:k==='fov'?60:k==='geometry'?{attributes:{position:{array:new Float32Array(60),needsUpdate:false}}}:k==='attributes'?{position:{array:new Float32Array(60),needsUpdate:false}}:k==='children'?[]:k==='fog'?(t.__fog=t.__fog||{color:{copy(){}},near:0,far:0}):k==='intensity'?1:()=>any(),set:()=>true,construct:()=>any(),apply:()=>any()});
   const g=globalThis,els={};
   g.__els=els;
   g.document={getElementById:id=>els[id]||(els[id]=makeEl(id,any)),documentElement:makeEl('html',any),createElement:()=>any(),addEventListener(){},hidden:false};
