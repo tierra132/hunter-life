@@ -11,6 +11,8 @@ const body=`(function(){
  T('S6 同日に何度開いても内容は変わらない',()=>{const a=Object.keys(S.gen).join();rollMissions();rollMissions();if(Object.keys(S.gen).join()!==a)throw new Error('変動')});
  T('S7 操作説明は初回のみ(設定に記録)・感度設定が保存される',()=>{S.settings.help=0;helpPanel();act2('sens',{id:'1.4'});save();const L=load();if(L.settings.help!==1||L.settings.sens!==1.4)throw new Error(JSON.stringify(L.settings))});
   T('S9 距離に応じた更新・描画の間引き(近い=毎フレーム/遠い=間引き/霧の外=省略)',()=>{const a=lodFor(10),b=lodFor(60),c=lodFor(100);if(!(a.vis&&a.every===1&&b.vis&&b.every===4&&!c.vis))throw new Error(JSON.stringify([a,b,c]))});
+ T('S10 犬が反応した位置がミニマップ用に記録され(おおよその位置)、時間で消える',()=>{go('satoyama');const a=AN[0],p=player.position;p.x=0;p.z=0;a.g.position.x=15;a.g.position.z=0;a.seen=false;a.dogd=false;a.st='normal';DPING.length=0;updAnimals(.05,p);
+  if(DPING.length!==1)throw new Error('記録されない');const q=DPING[0],dd=Math.hypot(q.x-15,q.z-0);if(dd>8)throw new Error('位置がずれすぎ'+dd);if(dd===0)throw new Error('正確すぎる(動物の真上)');drawMini(p);animTick(41);if(DPING.length!==0)throw new Error('消えない')});
  T('S8 獲物を持ち帰ると売却画面が開く(まとめて処理)',()=>{go('satoyama');const c=capture({k:'deer',D:DATA.animals.deer,sz:80,rare:false,g:null});go('base');act2('sellAll',{});if(S.bag.length)throw new Error('残存')});
 })();`;
 load(process.argv.slice(2),body);console.log(out.join('\n'));console.log('---',out.length,'項目 /',fails,'失敗 / 0 スキップ');process.exit(fails?1:0);

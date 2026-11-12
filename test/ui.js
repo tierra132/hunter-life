@@ -15,6 +15,12 @@ const body=`(function(){
   notify('b');notify('c');notify('d');ok('U2b 同時表示は最大3件',NOTES.length===3);resCard('結果1','x');resCard('結果2','y');ok('U2c 結果カードは常に1枚',NOTES.filter(n=>n.lv==='res').length===1);
   __NOW+=6000;expireNotes();ok('U2d 時間が経つと消える',NOTES.length===0);
   ok('U2e 重要度の判定(警告/良い知らせ/通常)',nGuess('所持金が足りません')==='warn'&&nGuess('ミッション達成！')==='good'&&nGuess('罠を設置した')==='info')});
+ T('U2b 通知はちらつかない：変化が無ければ画面を書き換えず、既存の通知は作り直さない',()=>{NOTES.length=0;for(const k of Object.keys(NODE))delete NODE[k];__els.notes.children.length=0;
+  notify('A');const el=__els.notes.children[0],w0=el._iw;for(let i=0;i<10;i++)renderNotes();ok('U2b-1 同じ内容を何度描画しても書き換えない',el._iw===w0&&__els.notes.children.length===1);
+  notify('B');ok('U2b-2 通知が増えても既存の通知は作り直されない',__els.notes.children[0]===el&&__els.notes.children.length===2);
+  const eb=__els.notes.children[1],w1=eb._iw;notify('B');ok('U2b-3 直前と同じ通知の連続は、増えずに件数表示(×2)へ書き換わるだけ',__els.notes.children.length===2&&eb._iw===w1+1&&/×2/.test(eb.innerHTML));
+  __NOW+=1500;notify('C');__NOW+=1000;expireNotes();ok('U2b-4 期限が来た通知(A,B)だけが消え、新しい通知(C)は残る',Object.keys(NODE).length===1&&el._c.has('out'));
+  ok('U2b-5 発見・犬の反応は控えめ表示(sub)に分類される',nGuess('ニホンジカを発見！')==='sub'&&nGuess('🐕 ハナが反応（右前方）')==='sub'&&nGuess('【物音】右前方でガサガサ…')==='sub'&&nGuess('ミッション達成！')==='good')});
  T('U3 歩きながら(スティック操作中)でも構え・慎重移動・銃切替を押せる',()=>{S.own=['airgun','rifle'];S.gun='airgun';go('satoyama');const ui=$('ui');
   ui.dispatch('pointerdown',{pointerId:1,clientX:100,clientY:300});ok('U3a 左側タッチでスティックが始まる',st.id===1);
   $('aim').dispatch('pointerdown',{pointerId:2});ok('U3b スティック操作中に構えられる',aiming===true&&st.id===1);
