@@ -28,15 +28,21 @@ async function startGame(){if(started)return;started=true;tryLandscape();audioIn
  buildPlayerModel();$('boot').style.display='none';go('base');requestAnimationFrame(loop);if(!S.settings.help)helpPanel()}
 
 /* ===== 通知：画面中央を避け、上端のHUDの間に小さく表示。重要度別・連続時は集約 ===== */
-const NDUR={info:2200,good:2800,warn:3200,imp:4200,res:4500},NOTES=[];let nTm=null;
-const nGuess=m=>/失敗|足りません|できません|上限|不可|近すぎ|弾切れ|読み込め/.test(m)?'warn':/達成|ランクアップ|レベルアップ|解放|初捕獲|仲間|報酬/.test(m)?'good':'info';
+const NDUR={sub:1800,info:2200,good:2800,warn:3200,imp:4200,res:4500},NOTES=[],NODE={};let nTm=null,nid=0;
+const nGuess=m=>/失敗|足りません|できません|上限|不可|近すぎ|弾切れ|読み込め/.test(m)?'warn':/達成|ランクアップ|レベルアップ|解放|初捕獲|仲間|報酬/.test(m)?'good':/を発見！|が反応|痕跡を見つけた|【物音】/.test(m)?'sub':'info';
 function notify(msg,lv,html){const now=Date.now();lv=lv||'info';if(lv==='res'){for(let i=NOTES.length-1;i>=0;i--)if(NOTES[i].lv==='res')NOTES.splice(i,1)}
  const last=NOTES[NOTES.length-1];
  if(last&&lv!=='res'&&last.lv===lv&&last.msg===msg&&now-last.t<1500){last.n++;last.t=now;last.until=now+NDUR[lv]}
  else NOTES.push({msg,lv,html,t:now,n:1,until:now+NDUR[lv]});
  while(NOTES.length>3)NOTES.shift();renderNotes();clearTimeout(nTm);nTm=setTimeout(expireNotes,250)}
-function expireNotes(){const now=Date.now();for(let i=NOTES.length-1;i>=0;i--)if(NOTES[i].until<=now)NOTES.splice(i,1);renderNotes();if(NOTES.length)nTm=setTimeout(expireNotes,250)}
-function renderNotes(){$('notes').innerHTML=NOTES.map(n=>`<div class="note ${n.lv}">${n.html||n.msg}${n.n>1?' ×'+n.n:''}</div>`).join('')}
+function expireNotes(){const now=Date.now();let ch=false;for(let i=NOTES.length-1;i>=0;i--)if(NOTES[i].until<=now){NOTES.splice(i,1);ch=true}if(ch)renderNotes();if(NOTES.length)nTm=setTimeout(expireNotes,300)}
+/* 変化した分だけ画面を更新する(全部作り直さない＝出現アニメが繰り返されず、ちらつかない) */
+function renderNotes(){const box=$('notes');
+ for(const n of NOTES){if(!n.id)n.id=++nid;const txt=n.html||(n.msg+(n.n>1?' ×'+n.n:''));let el=NODE[n.id];
+  if(!el){el=document.createElement('div');el.className='note '+n.lv;el.innerHTML=txt;box.appendChild(el);NODE[n.id]=el;n.txt=txt}
+  else if(n.txt!==txt){el.innerHTML=txt;n.txt=txt}}
+ const live=new Set(NOTES.map(n=>n.id));
+ for(const id of Object.keys(NODE))if(!live.has(+id)){const el=NODE[id];delete NODE[id];if(el.classList&&el.classList.add)el.classList.add('out');setTimeout(()=>{const pn=el.parentNode;if(pn&&typeof pn.removeChild==='function')pn.removeChild(el)},220)}}
 function toast(m,lv){notify(m,lv||nGuess(m))}
 function resCard(t,h){notify(null,'res',`<b>${t}</b><br>${h}`)}
 
@@ -94,14 +100,15 @@ function menuPanel(){cur=menuPanel;const rd=S.missions.active.filter(a=>a.ready)
 function pending(f){const P={mission:boardPanel,shop:shopPanel,storage:storagePanel,kennel:kennelPanel,dex:dexPanel}[f.id];if(P)return P();openPanel(f.name,'<div class="card dim">この施設は準備中です。</div>')}
 
 /* ===== 出発準備 ===== */
-function prepHtml(){let h=`<div class="card"><b>🔫 銃</b><div class="row">${S.own.map(id=>`<button class="${S.gun===id?'pri':''}" data-a="selgun" data-id="${id}">${DATA.guns[id].name}<br><small>弾 ${S.ammo[id]||0}</small></button>`).join('')}</div>${(S.ammo[S.gun]||0)<=0?'<div class="warn">⚠ 選択中の銃の弾がありません（ショップで購入できます）</div>':''}</div>`;
- h+=`<div class="card"><b>🎒 補助装備</b><div class="row">${S.gearOwn.length?S.gearOwn.map(id=>`<button class="${S.gearOn.includes(id)?'pri':''}" data-a="gear" data-id="${id}">${DATA.gear[id].name}</button>`).join(''):'<span class="mut">なし（ショップで購入）</span>'}</div></div>`;
- h+=`<div class="card"><b>🐕 同行犬（最大${partyMax()}頭）</b><div class="row">${dogBtns()}</div></div>`;
- h+=`<div class="card"><b>🪤 罠</b>　<span class="mut">${Object.entries(DATA.traps).map(([k,T])=>T.name+' '+(S.trapInv[k]||0)).join('・')}（設置 ${S.traps.length}/${trapLimit()}）</span></div>`;return h}
+/* ===== 出発準備：装備は1行ずつ、エリアは1行1エリア(スクロールを減らす) ===== */
+function prepHtml(){const chip=(on,a,id,t)=>`<button class="${on?'pri':''}" data-a="${a}" data-id="${id}">${t}</button>`;
+ const guns=S.own.map(id=>chip(S.gun===id,'selgun',id,`${DATA.guns[id].name} <small>弾${S.ammo[id]||0}</small>`)).join('');
+ const gear=S.gearOwn.length?S.gearOwn.map(id=>chip(S.gearOn.includes(id),'gear',id,DATA.gear[id].name)).join(''):'<span class="mut">なし</span>';
+ return `<div class="rowh"><b>🔫</b>${guns}</div>${(S.ammo[S.gun]||0)<=0?'<div class="warn">⚠ 弾がありません（ショップで購入）</div>':''}<div class="rowh"><b>🎒</b>${gear}</div><div class="rowh"><b>🐕</b>${dogBtns()}</div><div class="rowh"><b>🪤</b><span class="mut">${Object.entries(DATA.traps).map(([k,T])=>T.name+' '+(S.trapInv[k]||0)).join('・')}（設置 ${S.traps.length}/${trapLimit()}）</span></div>`}
 function gatePanel(){cur=gatePanel;let R='';
  for(const[id,A]of Object.entries(DATA.areas)){if(id==='base')continue;const ok=S.unlocked.includes(id)&&A.ready;
-  R+=`<div class="card ${ok?'':'dim'}"><b>${A.name}</b><br><span class="mut">${A.desc}${A.feat?'　特徴：'+A.feat:''}</span>${ok&&A.spawn?'<br>獣の気配：'+abund(id):''}<div class="row">${ok?`<button class="pri" data-a="go" data-id="${id}">出発</button>`:`<span class="mut">未解放（Rank ${A.unlockRank}${A.needMission?'・「'+DATA.missions[A.needMission].title+'」達成':''}）</span>`}</div></div>`}
- openPanel('出発準備',`<div class="cols"><div><h3>準備</h3>${prepHtml()}${evHtml()}</div><div><h3>エリアを選ぶ</h3>${R}</div></div>`)}
+  R+=`<div class="arow ${ok?'':'dim'}"><div class="ai"><b>${A.name}</b>${ok&&A.spawn?' <small class="mut">獣の気配：'+abund(id)+'</small>':''}<br><small class="mut">${ok?(A.feat||A.desc):'未解放（Rank '+A.unlockRank+(A.needMission?'・「'+DATA.missions[A.needMission].title+'」達成':'')+'）'}</small></div>${ok?`<button class="pri" data-a="go" data-id="${id}">出発</button>`:''}</div>`}
+ openPanel('出発準備',`<div class="cols"><div>${prepHtml()}${evHtml()}</div><div>${R}</div></div>`)}
 
 /* ===== ミッション掲示板（タブ式） ===== */
 const SLOTS=[['main','メイン',1],['sub','サブ',2],['special','特別',1],['daily','デイリー',3],['weekly','ウィークリー',2]];

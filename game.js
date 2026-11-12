@@ -83,7 +83,7 @@ function mkAnimal(k,x,z){const D=DATA.animals[k],rare=Math.random()<D.rare*(area
  const qy=Terrain.nearestOk(TER,cl(x),cl(z),10,(u,v)=>TER.reach(u,v))||Terrain.nearestOk(TER,cl(x),cl(z),30)||[cl(x),cl(z)];g.position.set(qy[0],TER.h(qy[0],qy[1]),qy[1]);g.rotation.y=Math.random()*6.28;scene.add(g);
  const a={k,D,g,ac,rare,hx:g.position.x,hz:g.position.z,st:'normal',t:Math.random()*3,tx:0,tz:0,mv:false,seen:false,vis:0,hint:0,mk:null,dogd:false,sz:D.size[0]+Math.random()*(D.size[1]-D.size[0])};AN.push(a);return a}
 function spawnAt(k,n,x,z){for(let i=0;i<n;i++)mkAnimal(k,x+(Math.random()-.5)*5,z+(Math.random()-.5)*5)}
-function initField(){AN.length=0;SG.length=0;pulses.length=0;near=null;$('act').style.display='none';dog=null;DG.length=0;BL.length=0;for(const k in TM)delete TM[k];const f=DATA.signs;signT=f.first[0]+Math.random()*(f.first[1]-f.first[0]);
+function initField(){AN.length=0;SG.length=0;pulses.length=0;near=null;$('act').style.display='none';dog=null;DG.length=0;BL.length=0;DPING.length=0;for(const k in TM)delete TM[k];const f=DATA.signs;signT=f.first[0]+Math.random()*(f.first[1]-f.first[0]);
  initEnv();if(!area.spawn)return;S.party.forEach((id,i)=>{const ac=ModelKit.create('dog',{length:.78}),dm=ac.root;if(i)ac.tint(0x6b4a2b,.7);dm.position.set(player.position.x+1+i,player.position.y,player.position.z+1);scene.add(dm);DG.push({m:dm,actor:ac})});
  const W=spawnW();while(AN.length<area.max){const k=pick(W),D=DATA.animals[k];const sp0=Terrain.pickSpot(TER,Math.random,area.half,{zones:DATA.animalZones[k],minFrom:[player.position.x,player.position.z],minDist:DATA.spawnMin,test:(a,b)=>TER.reach(a,b),tries:150})||Terrain.nearestOk(TER,(Math.random()*2-1)*(area.half-8),(Math.random()*2-1)*(area.half-8),30)||[0,14],x=sp0[0],z=sp0[1];
   spawnAt(k,D.group[0]+Math.floor(Math.random()*(D.group[1]-D.group[0]+1)),x,z)}}
@@ -101,7 +101,7 @@ function updAnimals(dt,p){for(const a of AN){const g=a.g,D=a.D,dx=g.position.x-p
   else{stepA(a,Math.atan2(dx,dz),D.flee,dt);a.t-=dt;if((a.t<=0&&d>28)||a.t<-6){a.st='normal';a.hx=g.position.x;a.hz=g.position.z;a.t=2}}
   if(!a.seen){const cosA=(dx*Math.sin(yaw)+dz*Math.cos(yaw))/d,Rg=DATA.sight.base*(1-D.disc*.5)*(1+dogSum('find')*DATA.dog.findK+gs('sight'))*(area.sight||1)*envSight()*TER.vantage(p.y,g.position.y);
    if(d<Rg&&cosA>DATA.sight.cone&&!occ(p.x,p.z,g.position.x,g.position.z)&&TER.los(p.x,p.y+1.6,p.z,g.position.x,g.position.y+D.body[1]*.8,g.position.z)){a.vis+=dt;if(a.vis>.7)discover(a)}else a.vis=Math.max(0,a.vis-dt);
-   if(!a.dogd&&d<22){a.dogd=true;toast(party()[0].name+'が何かに反応している…')}}
+   if(!a.dogd&&d<22){a.dogd=true;const ox=(Math.random()-.5)*10,oz=(Math.random()-.5)*10,px=g.position.x+ox,pz=g.position.z+oz;DPING.push({x:px,z:pz,age:0});if(DPING.length>4)DPING.shift();toast('\ud83d\udc15 '+((party()[0]||{}).name||'\u72ac')+'\u304c\u53cd\u5fdc\uff08'+dirText(px-p.x,pz-p.z)+'\uff09','sub')}}
   else if(a.mk)a.mk.visible=d<55}}
 const mTrack=new THREE.MeshBasicMaterial({color:0x2b2118}),mFeed=new THREE.MeshLambertMaterial({color:0x5a4a2a});
 function spawnSign(p,force){const sp=spawnW();if(!area.spawn)return;const k=pick(sp),r0=Math.random(),type=force?(r0<.5?'track':'feed'):r0<.45?'track':r0<.8?'feed':'sound',fresh=Math.random()<DATA.signs.fresh,an=Math.random()*6.28,r=type==='sound'?30+Math.random()*10:12+Math.random()*16,qq=snapOk(cl(p.x+Math.cos(an)*r),cl(p.z+Math.sin(an)*r)),x=qq[0],z=qq[1];
@@ -122,7 +122,7 @@ function field(dt,p){tickEnv(dt,p);updAnimals(dt,p);animTick(dt);for(const d of 
 function drawMini(p){const c=Math.cos(yaw),s=Math.sin(yaw);mc.setTransform(1,0,0,1,0,0);mc.clearRect(0,0,96,96);mc.fillStyle='#1d2a22';mc.fillRect(0,0,96,96);
  mc.setTransform(-c,-s,s,-c,48,48);const H=area.half;mc.fillStyle='#3f7a46';mc.fillRect(-H-p.x,-H-p.z,2*H,2*H);
  
- mc.fillStyle='#fff';for(const g of SG)if(g.noticed&&!g.done)mc.fillRect(g.x-p.x-1.5,g.z-p.z-1.5,3,3);drawTrapsMini(p);
+ mc.fillStyle='#fff';for(const g of SG)if(g.noticed&&!g.done)mc.fillRect(g.x-p.x-1.5,g.z-p.z-1.5,3,3);drawTrapsMini(p);drawDogPings(p);
  
  mc.setTransform(1,0,0,1,48,48);mc.rotate(yaw-player.rotation.y);mc.fillStyle='#e0a43a';mc.beginPath();mc.moveTo(0,-5);mc.lineTo(4,4);mc.lineTo(-4,4);mc.fill();mc.setTransform(1,0,0,1,0,0)}
 /* ===== 狩猟：構え・照準・射撃・捕獲（Phase 3） ===== */
@@ -311,6 +311,9 @@ function rollMissions(){const dk=dkey(new Date()),wk=wkey();let ch=false;
  const live=new Set(Object.keys(want).concat(S.missions.active.map(a=>a.id)));for(const id of Object.keys(S.gen))if(!live.has(id)){delete S.gen[id];delete S.missions.done[id];ch=true}
  if(ch){updMis();save()}}
 
+/* ===== 犬の反応位置(ミニマップ)：正確な位置ではなく「このあたり」を示す輪 ===== */
+const DPING=[];
+function drawDogPings(p){for(const q of DPING){const al=Math.max(0,1-q.age/40),pl=(Math.sin(q.age*4)+1)/2;mc.globalAlpha=al*.9;mc.strokeStyle='#7fd7ff';mc.lineWidth=1.6;mc.beginPath();mc.arc(q.x-p.x,q.z-p.z,9+pl*3,0,6.3);mc.stroke();mc.fillStyle='#7fd7ff';mc.beginPath();mc.arc(q.x-p.x,q.z-p.z,2.2,0,6.3);mc.fill();mc.globalAlpha=1}}
 /* ===== 地形・植生・障害物（Phase C） ===== */
 const addCol=(x,z,r,kind)=>{const q=[x,z,r,kind];trees.push(q);TG.add(q);return q};
 const blocked=(x,z)=>TG.near(x,z,3.5,q=>Math.hypot(x-q[0],z-q[1])<(q[2]||.7)+.4);
@@ -325,10 +328,12 @@ function fixTrapPos(t){if(t.area!==aid||!area.spawn)return;if(TER.walkable(t.x,t
  const q=Terrain.nearestOk(TER,t.x,t.z,30,(a,b)=>!blocked(a,b));if(q){t.x=q[0];t.z=q[1];save();toast('設置済みの罠の位置を地形に合わせて調整しました')}}
 /* 地面：高さと区域・斜面に応じた色の格子メッシュ＋小川の水面。拠点は従来どおり平面 */
 function buildGround(A,id){
- const far=new THREE.Mesh(new THREE.PlaneGeometry(A.half*2+240,A.half*2+240),new THREE.MeshLambertMaterial({color:A.ground}));far.rotation.x=-Math.PI/2;far.position.y=(id==='base'||TER.flat)?0:-1.5;scene.add(far);
- if(id==='base'||TER.flat)return;
- const ext=A.half+26,st=1.5,n=Math.floor(ext*2/st)+1,pos=new Float32Array(n*n*3),col=new Float32Array(n*n*3),idx=new Uint16Array((n-1)*(n-1)*6);
- for(let i=0;i<n;i++)for(let j=0;j<n;j++){const x=-ext+i*st,z=-ext+j*st,k=(i*n+j)*3,c=TER.colorAt(x,z);pos[k]=x;pos[k+1]=TER.h(x,z);pos[k+2]=z;col[k]=c[0];col[k+1]=c[1];col[k+2]=c[2]}
+ const fm=new THREE.MeshLambertMaterial({color:A.ground});
+ if(id==='base'||TER.flat){const far=new THREE.Mesh(new THREE.PlaneGeometry(A.half*2+240,A.half*2+240),fm);far.rotation.x=-Math.PI/2;scene.add(far);return}
+ const ext=A.half+26,gc=new THREE.Color(A.ground);
+ for(const f of Terrain.farStrips(A.half,ext)){const m=new THREE.Mesh(new THREE.PlaneGeometry(f.w,f.d),fm);m.rotation.x=-Math.PI/2;m.position.set(f.cx,TER.plateau-.06,f.cz);scene.add(m)}   // 地形メッシュの外側だけ(上に重ならない)
+ const st=1.5,n=Math.floor(ext*2/st)+1,pos=new Float32Array(n*n*3),col=new Float32Array(n*n*3),idx=new Uint16Array((n-1)*(n-1)*6);
+ for(let i=0;i<n;i++)for(let j=0;j<n;j++){const x=-ext+i*st,z=-ext+j*st,k=(i*n+j)*3,c=TER.colorAt(x,z);const wB=Math.max(0,Math.min(1,(Math.max(Math.abs(x),Math.abs(z))-A.half-6)/16));pos[k]=x;pos[k+1]=TER.h(x,z);pos[k+2]=z;col[k]=c[0]+(gc.r-c[0])*wB;col[k+1]=c[1]+(gc.g-c[1])*wB;col[k+2]=c[2]+(gc.b-c[2])*wB}
  let q=0;for(let i=0;i<n-1;i++)for(let j=0;j<n-1;j++){const a=i*n+j,b=a+1,c=a+n,d=c+1;idx[q++]=a;idx[q++]=b;idx[q++]=c;idx[q++]=b;idx[q++]=d;idx[q++]=c}
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.setIndex(new THREE.BufferAttribute(idx,1));g.computeVertexNormals();
  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true})));
@@ -355,7 +360,7 @@ function plantRocks(A,id){const N=(DATA.terrain[id]||{}).rocks||0;if(!N)return;c
 function spdOf(o,x,z,dt){const v=o._px===undefined?0:Math.hypot(x-o._px,z-o._pz)/(dt>0?dt:1/60);o._px=x;o._pz=z;return v}
 /* 距離に応じた負荷軽減：近い=毎フレーム / 40m超=4フレームに1回 / 85m超(霧で見えない)=描画も更新も省略 */
 function lodFor(d){return d>85?{vis:false,every:0}:d>40?{vis:true,every:4}:{vis:true,every:1}}
-function animTick(dt){const pp=player.position;
+function animTick(dt){const pp=player.position;for(const q of DPING)q.age+=dt;while(DPING.length&&DPING[0].age>40)DPING.shift();
  for(const a of AN){if(!a.ac)continue;const L=lodFor(Math.hypot(a.g.position.x-pp.x,a.g.position.z-pp.z));a.g.visible=L.vis;
   if(!L.vis){a._px=undefined;a._acc=0;continue}
   a._acc=(a._acc||0)+dt;if(L.every>1&&((a._f=(a._f||0)+1)%L.every))continue;const ddt=a._acc;a._acc=0;

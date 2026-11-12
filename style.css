@@ -30,10 +30,12 @@ button.prs{transform:scale(.94);filter:brightness(1.25)}
 .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--bad);color:#fff;font-size:12px;line-height:18px;text-align:center;font-weight:700}
 .badge:empty{display:none}
 #notes{position:absolute;top:8px;left:210px;right:236px;display:flex;flex-direction:column;align-items:center;pointer-events:none;z-index:5}
+.note{transition:opacity .2s}.note.out{opacity:0}
+.note.sub{font-size:12px;padding:3px 10px;background:rgba(16,26,20,.55);border-color:transparent;margin-bottom:3px}
 .note{margin:0 0 4px;padding:6px 12px;border-radius:12px;background:var(--pn);border:1px solid var(--ln);font-size:13px;text-align:center;animation:nin .18s ease-out;max-width:100%}
 .note.good{border-color:var(--good)}.note.warn{border-color:var(--warn)}.note.imp{border-color:var(--ac);font-size:14px}
 .note.res{border:2px solid var(--ac);font-size:14px;padding:8px 14px;line-height:1.5}
-@keyframes nin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes nin{from{opacity:0}to{opacity:1}}
 /* 操作ボタン */
 .rbtn,.pill{position:absolute;display:none;align-items:center;justify-content:center;background:var(--pn);border:2px solid var(--ln);color:var(--fg)}
 .rbtn{width:56px;height:56px;border-radius:50%;padding:0;flex-direction:column;font-size:20px;line-height:1}
@@ -65,15 +67,17 @@ html.aiming #ui::before{content:"";position:absolute;inset:0;pointer-events:none
 .ph{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-bottom:1px solid var(--ln)}
 .pt{flex:1;font-size:17px;font-weight:700}
 .px{width:44px;padding:0;font-size:18px}
-.pb{flex:1;overflow:auto;padding:8px 14px 14px;-webkit-overflow-scrolling:touch}
+.pb{flex:1;overflow:auto;padding:6px 12px 12px;-webkit-overflow-scrolling:touch}
+.rowh{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:5px 0}.rowh>b{width:24px;text-align:center}.rowh button{min-height:40px;padding:0 10px;font-size:13px}
+.arow{display:flex;align-items:center;gap:8px;background:var(--pn2);border:1px solid var(--ln);border-radius:12px;padding:6px 10px;margin:6px 0}.arow .ai{flex:1;min-width:0;line-height:1.35}.arow.dim{opacity:.6}
 .pb h3{margin:12px 0 4px;font-size:15px}
-.card{background:var(--pn2);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;margin:8px 0}
+.card{background:var(--pn2);border:1px solid var(--ln);border-radius:12px;padding:8px 10px;margin:6px 0}
 .card.dim{opacity:.6}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0;align-items:center}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .g2{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0 10px}
-.tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px;min-height:88px;position:relative;border-radius:14px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:10px;min-height:76px;position:relative;border-radius:14px}
 .tile .ic{font-size:26px;line-height:1.1}.tile b{font-size:15px}.tile small{color:var(--mut);font-size:12px}.tile.pri small{color:var(--acf)}
 .tile .badge{position:absolute;top:8px;right:8px;margin:0}
 .tabs{display:flex;gap:6px;overflow-x:auto;padding:4px 0 6px}
