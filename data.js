@@ -121,6 +121,17 @@ const DATA={
  },
  zoneTrees:{wood:1,open:.22,field:.02,path:0,stream:.4},
  animalZones:{deer:{open:1,field:.9,wood:.55,path:.35,stream:.3},boar:{wood:1,stream:.6,open:.3,field:.4,path:.15},tanuki:{wood:.9,field:.7,open:.5,stream:.5,path:.2},hare:{field:1,open:.8,wood:.2,path:.5,stream:.1},fox:{open:.9,wood:.7,field:.6,path:.4,stream:.3},bear:{wood:1,stream:.4,open:.15,field:.1,path:.05}},
+ /* 動物の行動(警戒・逃走・威嚇)。sense=気づき始める距離(m) gain=近いときの警戒度の増加(毎秒) decay=落ち着く速さ tAlert/tFlee=警戒・逃走になる警戒度
+    fleeDist=この距離以内なら即座に逃げる safe=逃げ切ったとみなす距離 hold=警戒して見合う目安秒数 burst=全力で逃げる秒数 cover=遮蔽物を選ぶ好み */
+ aiBase:{sense:22,gain:34,decay:7,tAlert:28,tFlee:68,fleeDist:7,safe:34,hold:9,react:[.3,.8],burst:1.6,trot:.65,cover:.4,noise:1,behavior:'basic',hop:[5,9],freezeBreak:6,retreat:.5,aggrThr:.55,chargeRange:15,tele:1.3,chargeSpeed:7.5,chargeDur:1.6,woundCharge:.5},
+ ai:{
+  deer:{sense:58,gain:39,decay:6,tAlert:30,tFlee:80,fleeDist:9,safe:45,hold:10,burst:2.2,cover:.5,behavior:'herd',noise:1.1},
+  boar:{sense:27,gain:73,decay:7,tAlert:30,tFlee:80,fleeDist:6,safe:36,hold:8,burst:1.4,cover:.3,behavior:'charge',aggrThr:.55,chargeRange:15,tele:1.3,chargeSpeed:7.5,chargeDur:1.6,woundCharge:.5},
+  tanuki:{sense:18,gain:110,decay:9,tAlert:30,tFlee:80,fleeDist:4.5,safe:24,hold:14,burst:1.2,cover:.3},
+  hare:{sense:41,gain:40,decay:5,tAlert:30,tFlee:80,fleeDist:8,safe:36,hold:6,burst:.9,cover:.8,behavior:'hop',hop:[5,9],freezeBreak:6},
+  fox:{sense:64,gain:43,decay:5,tAlert:30,tFlee:80,fleeDist:12,safe:55,hold:4,burst:2.4,cover:1.1},
+  bear:{sense:39,gain:39,decay:6,tAlert:30,tFlee:80,fleeDist:5,safe:40,hold:12,burst:1,cover:.2,behavior:'bear',aggrThr:.45,chargeRange:18,tele:1,chargeSpeed:8,chargeDur:2.4,woundCharge:.65,retreat:.5}
+ },
  facilities:[
   {id:'mission',name:'ミッション掲示板',x:-10,z:-9,c:0xb5651d,phase:4},
   {id:'shop',name:'ショップ',x:10,z:-9,c:0x3d6fb5,phase:4},
